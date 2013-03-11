@@ -23,10 +23,14 @@ import subprocess
 from twisted.python import log
 
 class gitpuller:
-	def pull(self, testdir):
+	def pull(self, testdir, tag):
 		try:
-			log.msg('pulling stuff')
-			gitpull = subprocess.Popen(["sh", "git_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+			if tag == "null":
+				log.msg('pulling tests')
+				gitpull = subprocess.Popen(["sh", "git_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+			else:
+				log.msg('pulling tests with tag:', tag)
+				gitpull = subprocess.Popen(["sh", "git_wrapper.sh", tag],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
 			log.msg('GIT output list:', str(gitpull))
 			# check and raise an exception if errors occur
 			if str(gitpull[0]).find == ' ':

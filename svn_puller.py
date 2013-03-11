@@ -19,32 +19,24 @@
 import sys
 import os
 import subprocess
-import logging
 #import shlex
+from twisted.python import log
 
-module_logger = logging.getLogger('engine_starter.git_puller')
-
-class gitpuller:
-	
-        def __init__(self):
-
-            self.logger = logging.getLogger('engine_starter.git_puller.git_puller')
-
+class svnpuller:
 	def pull(self, testdir):
 		try:
-                        self.logger.debug('Starting GIT process')
-                	gitpull = subprocess.Popen(["sh", "git_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			#self.logger.debug('GIT output list: %s', str(gitpull))
+			log.msg('pulling tests')
+			svnpull = subprocess.Popen(["sh", "svn_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+			log.msg('SVN output:', str(svnpull))
 			# check and raise an exception if errors occur
-                	if str(gitpull[0]).find == ' ':
-                	        raise Exception(str(gitpull[1]))
+			if str(svnpull[0]).find == ' ':
+				raise Exception(str(svnpull[1]))
 			else:
-				self.logger.debug('GIT output: %s', gitpull[0])
 				return "ok"
-        	except Exception as e:
+		except Exception as e:
 			# if something weird happens, a message will be returned and old tests are run
-                        self.logger.critical('GIT process exception: %s', str(e))
-                	return str(e)
+			log.msg('SVN process exception: %s', str(e))
+			return str(e)
                 
                 
 

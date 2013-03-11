@@ -33,36 +33,13 @@ from git_puller import gitpuller
 from engine import Engine
 
 class fntc:
-	def fntc_main(self, cfengine, cfscripts, cfruntimes, cftolerance, cfoutputdir, cftestdir, cfscheduled, cftestname):
-		# getting variables from config
-		#f = open('testlink_client.conf')
-		#conf = yaml.load(f)
-		#f.close
-
-	    #argv1= testCaseName
-		#argv2= testCaseID
-		#argv3= testCaseVersionID
-		#argv4= testProjectID
-		#argv5= testPlanID
-		#argv6= platformID
-		#argv7= buildID
-		#argv8= executionMode
-
-
-		# TestLink API could be used for getting values, for example test case names or
-		# project names directly from Testlink database. Those could be used as folder names
-		# when combined with GIT
-		# Dev key is needed for database access
-
+	def fntc_main(self, conf, cfengine, cfscripts, cfruntimes, cftolerance, cfoutputdir, cftestdir, cfscheduled, cftestname):
 
 		engine_state = 1
 		engine_defined = False
 		cls = Engine
 		engines = []
 		results = []
-
-		# defining Git class
-		#puller = gitpuller()		
 
 		#path = "usr/share/fntcservice/engine/"	# will look for classes under the folder where this script is installed and under its subclasses
 		path ="./"
@@ -73,7 +50,7 @@ class fntc:
 					modulename = path.rsplit('.', 1)[0].replace('/', '.')
 					modulename = modulename.rsplit('.', 1)[1]
 					try:
-						log.msg("Checking module: %s", modulename)
+						log.msg("Checking module:", modulename)
 			        		module = __import__(modulename)
 			 
 			        		# walk the dictionaries to get to the last one
@@ -87,14 +64,14 @@ class fntc:
 			        		        	continue 		
 			            			try:
 			                			if issubclass(entry, cls):
-			                				log.msg("Found engine: %s", key)
+			                				log.msg("Found engine:", key)
 			                		    	engines.append(entry)
 			            			except TypeError:
 			                			#this happens when a non-type is passed in to issubclass. Non-types can't be instances, so they will be ignored.
 			                			continue			
 					except Exception, e:
 						# if something goes wrong while loading modules, loading is aborted
-						log.msg('Error while loading modules: %s', str(e))						
+						log.msg('Error while loading modules:', str(e))						
 
 		if engines == []:
 			log.msg('No test engines found')
@@ -106,7 +83,7 @@ class fntc:
 
 		for e in engines:	#scroll through all found engines and find the correct one
 			if e.__name__ == cfengine:
-				engine = e(cfengine, cfoutputdir, cftestdir, cfscheduled)
+				engine = e(conf, cfengine, cfoutputdir, cftestdir, cfscheduled)
 				engine_defined = True
 				break
 
@@ -116,7 +93,7 @@ class fntc:
 			timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
 			log.msg('The correct testing engine was not found, tests cannot be run. Check the custom field value')
 			#resultstring = "b@@The correct testing engine was not found, tests cannot be run. Check the custom field value.@@" + timestamp + "@@now"
-			return (-1, 'Test engine was not found', timestamp)
+			return (-1, 'Test engine was not found, check custom fields', timestamp)
 		else:
 			# pull the latest test script versions from Git
 			# TODO: maybe add a custom field / configuration and code for pulling from svn?
@@ -149,25 +126,12 @@ class fntc:
 				results = engine.get_test_results(cftestname, cfruntimes, cftolerance)
 
 
-				##resultstring = results[0] + "@@" + results[1] + "@@" + results[2] + "@@" + results[3]
-
 			engine_state = engine.teardown_environment()
 
 		if engine_state != 1:
 			log.msg('Something went wrong while running engine')
 			return (-1, 'Engine error: ' + engineresult, timestamp)
-		# Since the server saves the console output to a variable, I'll use print for
-		# returning the results
-		# All results must be returned as one string
-
-		# hardcoded return values for testing purposes
-		#result = "p"
-		#notes = "Just testing"
-		#scheduled = sys.argv[8]
-		#t = datetime.now()
-		#timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-
-
+		
 		log.msg('Returning results')
 
 		return results

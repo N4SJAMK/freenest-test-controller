@@ -35,6 +35,7 @@ import yaml
 from datetime import datetime
 from xml.etree import ElementTree as ET
 from git_puller import gitpuller
+from svn_puller import svnpuller
 #from engine_robot import robotEngine
 #from engine import Engine
 from fntc import fntc
@@ -49,8 +50,9 @@ class fntcService(xmlrpc.XMLRPC):
     conf = yaml.load(f)
     f.close
 
-    vOutputdir = conf['testlink']['outputdirectory']
-    vTestdir = conf['testlink']['testingdirectory']
+    vOutputdir = conf['general']['outputdirectory']
+    vTestdir = conf['general']['testingdirectory']
+    versioncontrol = conf['general']['versioncontrol']
     
     SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
     devKey = conf['testlink']['devkey']
@@ -83,25 +85,32 @@ class fntcService(xmlrpc.XMLRPC):
         	        i = i + 1
         	
         	tcidlist=(client.getTestCaseIDByName(data['testCaseName']))
-        	log.msg('Got test case IDs from poll: %s', tcidlist)
+        	log.msg('Got test case IDs from poll:', tcidlist)
 	
         	tcinfo=(client.getTestCase(prefix + "-" + tcidlist[0]['tc_external_id']))
-        	log.msg('Got test case information from poll: %s', tcinfo)
+        	log.msg('Got test case information from poll:', tcinfo)
 
         	tclist=(client.getTestCasesForTestPlan(data['buildID']))
         	log.msg('Got all test cases for Plan')
 
         	cfEngine=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[0]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", ""))
-        	log.msg('Got engine from custom field: %s', cfEngine)
+        	log.msg('Got engine from custom field:', cfEngine)
 
         	cfScripts=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[0]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", ""))
-        	log.msg('Got runnable tests from custom field: %s', cfScripts)  
+        	log.msg('Got runnable tests from custom field:', cfScripts)  
         
         	runtimes=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[0]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
-        	log.msg('Got runtimes from custom field: %s', runtimes)
+        	log.msg('Got runtimes from custom field:', runtimes)
 
         	tolerance=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[0]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
-        	log.msg('Got tolerance from custom field: %s', tolerance)
+        	log.msg('Got tolerance from custom field:', tolerance)
+
+		tag=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[0]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", ""))
+		if tag == "":
+			tag = "null"
+			log.msg('No tags found, going to run the newest tests.')
+		else:
+                	log.msg('Got version tag from custom field:', tag)
 
 	except Exception, e:
                 #TestlinkAPI might be broken
@@ -112,13 +121,37 @@ class fntcService(xmlrpc.XMLRPC):
                 cfScripts = sys.argv[1] + ".txt"
                 runtimes = 5
                 tolerance = 80
+		tag = "null"
 
 
-       	
-        puller = gitpuller()
-        gitresult = puller.pull(self.vTestdir)
-        if gitresult != "ok":
-            log.msg('Git error, running old tests. ERROR:', gitresult)
+        # checking the version control software and choosing the correct driver
+	#GIT
+       	if self.versioncontrol == "GIT":
+            puller = gitpuller()
+            gitresult = puller.pull(self.vTestdir, tag)
+            if gitresult != "ok":
+                log.msg('Git error, running old tests. ERROR:', gitresult)
+            testdir = self.vTestdir
+	#SVN
+        elif self.versioncontrol == "SVN":
+            puller = svnpuller()
+            svnresult = puller.pull(self.vTestdir)
+            if svnresult != "ok":
+                log.msg('SVN error, running old tests. ERROR:', svnresult)
+            #setting the testdir to point to the tests instead of the repository
+            #if a tag is given and not found, the trunk is used as a test resource
+            if tag == "null":
+                testdir = self.vTestdir + "trunk/tests/"
+            else:
+                if os.path.exists(self.vTestdir + tag + "/tests/") != true:
+                    log.msg("Tagged tests were not found from the repository, running tests from trunk")
+                    testdir = self.vTestdir + "/trunk/tests/"
+                else:
+                    testdir = self.vTestdir + tag + "/tests/"
+	#something else, not officially supported
+        else:
+            msg = "Version control driver for " + self.versioncontrol + " was not found, tests cannot be updated"
+            log.msg(msg)
 
 
         ''' talk with main program, send data and expect result '''
@@ -136,7 +169,7 @@ class fntcService(xmlrpc.XMLRPC):
             log.msg('Custom field "Tolerance" contains an invalid value, resetting to default')
             tolerance = 100
 
-        (result, notes, timestamp) = f.fntc_main(cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, self.vTestdir, 'now', data['testCaseName'])
+        (result, notes, timestamp) = f.fntc_main(self.conf, cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, testdir, 'now', data['testCaseName'])
 
         if(result == 1):
             self.rResult['result'] = 'p'

@@ -32,7 +32,7 @@ from twisted.python import log
 
 class robotEngine(Engine):
 
-	def __init__(self, tcID, vOutputdir, testdir, vScheduled):
+	def __init__(self, conf, tcID, vOutputdir, testdir, vScheduled):
 		# loading robot specific configs
 		self.vOutputdir = vOutputdir
 		self.testdir = testdir
@@ -42,9 +42,9 @@ class robotEngine(Engine):
 		self.result = -1
 		self.timestamp = ""
 
-		f = open('/home/adminuser/fntc/testlink_client.conf')
-                conf = yaml.load(f)
-                f.close
+		#f = open('/home/adminuser/fntc/testlink_client.conf')
+                #conf = yaml.load(f)
+                #f.close
 
 		self.SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
     		self.devKey = conf['testlink']['devkey']
@@ -74,7 +74,7 @@ class robotEngine(Engine):
                         if os.path.exists(self.testdir + t):
 				foundtests.append(t)
 			else:
-				log.msg('Test %s not found, skipping...', t)
+				log.msg('Test not found, skipping ', t)
 
 
 		if foundtests != []:
@@ -101,7 +101,7 @@ class robotEngine(Engine):
                 			if not os.path.exists(outputdir):
                         			os.makedirs(outputdir)
 
-                			log.msg('Running command: "%s"', cmd)
+                			log.msg('Running command:', cmd)
 
                 			robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
                 	
@@ -209,7 +209,7 @@ class robotEngine(Engine):
                         		self.notes = "\nXML ERROR: " + str(e)
                         		t = datetime.now()
                         		self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-                        		log.msg('xml error: %s', str(e))
+                        		log.msg('xml error:', str(e))
                         		return (self.result, self.notes, self.timestamp)
 				
 				i = i + 1		
@@ -268,7 +268,7 @@ class robotEngine(Engine):
 				s.close()
 
 			except Exception, e:	# if the socket fails for some reason...
-				log.msg("SOCKET ERROR: %s", str(e))
+				log.msg("SOCKET ERROR:", str(e))
 				noproblems = 0
 				self.notes = self.notes + "Failed to create links for accurate reports. \nCheck the log for details.\n"
  
@@ -297,7 +297,7 @@ class robotEngine(Engine):
         	puller = gitpuller()
         	gitresult = puller.pull(str(self.testdir))
         	if gitresult != "ok":
-            		log.msg('git error: %s', gitresult)
+            		log.msg('git error:', gitresult)
 			self.notes = gitresult
             		return False
 		else:
@@ -326,9 +326,9 @@ class robotEngine(Engine):
 			
 			# creating the zip-package
 			package = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			log.msg("Files packed, output: %s", str(package))
+			log.msg("Files packed, output:", str(package))
 		except Exception, e:
-			log.msg("PACKAGING ERROR: %s", str(e))
+			log.msg("PACKAGING ERROR:", str(e))
 			no_problems = 0
 
 		
@@ -339,7 +339,7 @@ class robotEngine(Engine):
 				with open(outputdir + filename + ".zip", 'rb') as fin, open(outputdir + filename + "_b64.zip", 'w') as fout:
 					base64.encode(fin, fout)
 			except Exception, e:
-				log.msg("ENCODING ERROR: %s", str(e))
+				log.msg("ENCODING ERROR:", str(e))
 				no_problems = 0
 
 
@@ -351,7 +351,7 @@ class robotEngine(Engine):
 					log.msg(str(up))
 
 				except Exception, e:
-					log.msg("UPLOADING ERROR: %s", str(e))	
+					log.msg("UPLOADING ERROR:", str(e))	
 	
 
 

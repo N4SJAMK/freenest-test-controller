@@ -92,7 +92,7 @@ class para():
 		'logFile' is the path+name of the log.html file to be written
 		the global variable 'suite_name' will be used a report title
 		"""
-		rebotCommand = "rebot --log %s --report %s --output %s --reporttitle \"%s\" " % (logFile, reportFile, outputFile, self.suite_name)
+		rebotCommand = "rebot --noncritical noncrit --log %s --report %s --output %s --reporttitle \"%s\" " % (logFile, reportFile, outputFile, self.suite_name)
 		for file in xmlFiles:	
 			rebotCommand = rebotCommand + "%s " % file
 		rc = os.system(rebotCommand)
@@ -233,7 +233,7 @@ class para():
 		# calculating test execution time
 		endTime = datetime.now()
 		executionTime = endTime - self.startTime
-		self.log.msg("Execution time: %s", executionTime)
+		self.log.msg("Execution time:", executionTime)
 
 		return "ok"
 

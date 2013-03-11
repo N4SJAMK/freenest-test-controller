@@ -34,11 +34,11 @@ from parabot import para
 
 class gridEngine(Engine):
 
-	def __init__(self, tcID, vOutputdir, testdir, vScheduled):
+	def __init__(self, conf, tcID, vOutputdir, testdir, vScheduled):
         	# loading grid specific configs
-		f = open('/home/adminuser/fntc/testlink_client.conf')
-        	conf = yaml.load(f)
-        	f.close
+		#f = open('/home/adminuser/fntc/testlink_client.conf')
+        	#conf = yaml.load(f)
+        	#f.close
 
         	self.robot_version = conf['robot']['version']
 		self.devKey = conf['testlink']['devkey']
@@ -115,7 +115,7 @@ class gridEngine(Engine):
                 			if not os.path.exists(outputdir):
                         			os.makedirs(outputdir)
 
-                			log.msg('Sending tests for parabot: "%s"', tests)
+                			log.msg('Sending tests for parabot:', tests)
 
                 			#robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
 					parabot = para(testCaseName, outputdir, self.testdir, testlist)
@@ -228,7 +228,7 @@ class gridEngine(Engine):
                         		self.notes = "\nXML ERROR: " + str(e)
                         		t = datetime.now()
                         		self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-                        		log.msg('xml error: %s', str(e))
+                        		log.msg('xml error:', str(e))
 				
 				i = i + 1		
 
