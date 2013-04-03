@@ -29,6 +29,7 @@ from git_puller import gitpuller
 from engine import Engine
 
 from twisted.python import log
+from log_collector import logcollector
 
 class robotEngine(Engine):
 
@@ -51,7 +52,15 @@ class robotEngine(Engine):
         	self.robot_version = conf['robot']['version']
 		self.dyn_args = conf['variables']['dyn_args']
 
+		self.slaves = conf['general']['slaves']
+		self.slave_user = conf['general']['slave_user']
+	
+		self.conf = conf
+
 		self.tcID = tcID
+
+		self.logger = logcollector()
+		self.host = ""
 
 		log.msg('RobotEngine: Engine loaded')
 
@@ -59,7 +68,7 @@ class robotEngine(Engine):
     	def run_tests(self, testCaseName, testList, runTimes):
         	# using subprocess for running robot, cwd is the working directory
         	# stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
-        	# or f if you want the output to be written in a file.
+        	# or a file object if you want the output to be written in a file.
 
 		# building the command that is sent to RF
                 # name is used so RF doesn't create a huge, nasty looking name for the test suite
@@ -70,7 +79,7 @@ class robotEngine(Engine):
 		for arg in self.dyn_args:
 			cmd = cmd + " --variable " + arg[0] + ":" + arg[1]
 
-		for t in testList: 			# checking that tests exist, so the script doesn't fail because of missing test
+		for t in testList: 			# checking that tests exist, so the script doesn't fail because of missing tests
                         if os.path.exists(self.testdir + t):
 				foundtests.append(t)
 			else:
@@ -100,11 +109,20 @@ class robotEngine(Engine):
 
                 			if not os.path.exists(outputdir):
                         			os.makedirs(outputdir)
+					
+					if self.conf['log_collecting']['log_collecting_enabled'] == True:
+						# marking starting time
+						self.host = self.slave_user + "@" + self.slaves[0]
+						self.logger.mark_logs(testCaseName, self.host)
 
                 			log.msg('Running command:', cmd)
 
                 			robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-                	
+                			
+					if self.conf['log_collecting']['log_collecting_enabled'] == True:
+						# marking ending time
+						self.logger.mark_logs_end(testCaseName, self.host)
+
 					# check and raise an exception if Robot fails to start
                 		        if str(robo[1]) != '':
                 		               raise Exception(str(robo[1]))
@@ -241,6 +259,13 @@ class robotEngine(Engine):
 				self.notes = self.notes + "Test set PASSED\n\n"
 			else: 
 				self.notes = self.notes + "Test set FAILED: " + reason + "\n\n"
+				
+				if self.conf['log_collecting']['log_collecting_enabled'] == True:
+					# tests failed, so we need to fetch the logs to see what went wrong
+					host = []
+					host.append(self.host)
+					self.logger.collect_logs(self.vOutputdir, testCaseName, host)
+					log.msg('Logs were fetched to', (self.vOutputdir + testCaseName))
 
 			# results for each test separately
 			j = 0

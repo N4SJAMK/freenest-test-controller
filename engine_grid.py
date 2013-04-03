@@ -30,6 +30,7 @@ from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
 from parabot import para
+from log_collector import logcollector
 
 
 class gridEngine(Engine):
@@ -47,12 +48,17 @@ class gridEngine(Engine):
         	self.vOutputdir = vOutputdir
         	self.testdir = testdir
 
+		self.conf = conf
+		self.hosts = []
+
 		self.scheduled = vScheduled
 		self.notes = ""
 		self.result = -2
 		self.timestamp = ""
 
 		self.tcID = tcID
+
+		self.logger = logcollector()
 
 		log.msg('Engine succesfully loaded')
 
@@ -118,12 +124,13 @@ class gridEngine(Engine):
                 			log.msg('Sending tests for parabot:', tests)
 
                 			#robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-					parabot = para(testCaseName, outputdir, self.testdir, testlist)
+					parabot = para(self.conf, testCaseName, outputdir, self.testdir, testlist)
 					grid = parabot.run()
+					self.hosts = grid
 
 					# check and raise an exception if Robot fails to start
-                		        if grid != "ok":
-                		               raise Exception(grid)
+                		        if grid[0] != "ok":
+                		               raise Exception(grid[0])
                 		        else:
                 		               gridresult = "ok"
 						
@@ -259,6 +266,12 @@ class gridEngine(Engine):
 				self.notes = self.notes + "Test set PASSED\n\n"
 			else: 
 				self.notes = self.notes + "Test set FAILED: " + reason + "\n\n"
+				
+				if self.conf['log_collecting']['log_collecting_enabled'] == True:
+					# tests failed, so we need to fetch the logs to see what went wrong
+					self.hosts.pop(0)
+					self.logger.collect_logs(self.vOutputdir, testCaseName, self.hosts)
+					log.msg('Logs were fetched to', (self.vOutputdir + testCaseName))
 
 			# results for each test separately
 			j = 0
@@ -306,7 +319,7 @@ class gridEngine(Engine):
 		#results.append(self.scheduled)
 		results.append(self.timestamp)
 
-		log.msg('grid returns:', results)
+		#log.msg('grid returns:', results)
 
 		# pack and upload results
 		#self.upload_results(testCaseName, runTimes)

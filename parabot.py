@@ -17,11 +17,12 @@ import sys
 import getopt
 import yaml
 from twisted.python import log
+from log_collector import logcollector
 
 
 
 class para(): 
-	def __init__(self, testCaseName, outputdir, testdir, testlist):	
+	def __init__(self, conf, testCaseName, outputdir, testdir, testlist):	
 		# loading config file
                 f = open('/home/adminuser/fntc/testlink_client.conf')
                 conf = yaml.load(f)
@@ -43,12 +44,12 @@ class para():
 		self.forceSerialExecution = False
 		self.baseDir = "./"
 		
+		self.conf = conf
 		
 		# reading variables from config
 		self.max_parallel_tests = conf['grid']['max_parallel_tests']
 		self.min_test_per_block = conf['grid']['min_tests_per_block']
-		self.DYN_ARGS = conf['variables']['dyn_args']
-		#self.log.msg('dyn_args:', self.DYN_ARGS)		
+		self.DYN_ARGS = conf['variables']['dyn_args']		
 
 		self.log.msg('Parabot succesfully loaded')
 		
@@ -74,7 +75,7 @@ class para():
 			current_block = current_block+1
 		return para_test_blocks
 	
-	def startPybot(self, name, tests, suite, args=[]):
+	def startPybot(self, name, tests, suite, conf, index, args=[]):
 		""" Creates a pybot object, starts it and returns the object
 		'name' is the name for the pybot (will be used for log outputs)
 		'tests' is a list of tests to be executed by the pybot
@@ -82,7 +83,7 @@ class para():
 		'args' (optional) is a list of additional parameters passed to pybot
 		"""
 		pybot = Pybot(name, self.suite_name, self.logFolder, self.clientCwd)
-		pybot.start(tests, suite, args)
+		pybot.start(tests, suite, conf, index, args)
 		return pybot
 	
 	def generateReportAndLog(self, xmlFiles, outputFile, reportFile, logFile):
@@ -127,7 +128,8 @@ class para():
 		# generating two lists containing parallel and serial tests
 		para_tests = []
 		seri_tests = []
-		
+		retlist = []
+
 		for file in self.testlist:
 			suiteOps = settings.RobotSettings()
 			suite = TestSuite(file, suiteOps)
@@ -175,8 +177,10 @@ class para():
 		i = 0;
 		pybots = []
 		for block in para_test_blocks:
-			dynArgs = self.getDynArgs(i);
-			pybots.append(self.startPybot("paraBlock_%s" % i, block, self.suite_name, dynArgs))
+			dynArgs = self.getDynArgs(i)
+			self.log.msg(self.suite_name)
+			pybots.append(self.startPybot("paraBlock_%s" % i, block, self.suite_name, self.conf, i, dynArgs))
+			retlist.append(self.conf['general']['slave_user'] + "@" + self.conf['general']['slaves'][i])
 			i = i + 1
 			# delay start of next pybot
 			time.sleep(5)
@@ -201,8 +205,8 @@ class para():
 		# running serial block	
 		pybot = None
 		if len(seri_tests) > 0:
-			self.log.msg("Starting serial tests ...")
-			pybot = self.startPybot("serial_block", seri_tests, self.suite_name, self.getDynArgs(0))
+			self.log.msg("Starting serial tests...")
+			pybot = self.startPybot("serial_block", seri_tests, self.suite_name, self.conf, 0, self.getDynArgs(0))
 			while pybot.isRunning():
 				time.sleep(5)
 		
@@ -224,7 +228,7 @@ class para():
 		reportRC = self.generateReportAndLog(outputXmls, output, report, log)
 		
 		
-		# delete XML output files after generating the report / log (if report generation 
+		# delete XML output files after generating the report / log (if report generating 
 		# returned zero)
 		#if reportRC == 0:
 		#    for outXML in outputXmls:
@@ -235,7 +239,9 @@ class para():
 		executionTime = endTime - self.startTime
 		self.log.msg("Execution time:", executionTime)
 
-		return "ok"
+		retlist.insert(0, "ok")
+
+		return retlist
 
 	
 class Pybot():
@@ -257,18 +263,22 @@ class Pybot():
 		self.suite_name = suite_name
 		self.logFolder = logFolder
 		self.clientCwd = clientCwd
+		self.host = ""
+		self.logger = logcollector()
 		log.msg("Created pybot", name)
 
     
-	def start(self, tests, suite, args=[]):
+	def start(self, tests, suite, conf, index, args=[]):
 		""" Starts the pybot script from RobotFramework executing the defined 'tests' from the given 'suite'.
 		'tests' is a list of tests to be executed by the pybot
 		'suite' is the filename of the test suite containing the 'tests'
 		'args' (optional) is a list of additional parameters passed to pybot
 		"""
+		self.conf = conf
 		self.tests = tests
 		self.suite = suite
 		self.args = args
+		log.msg(self.suite_name)
 		temp, suiteName = os.path.split(self.suite_name)
 		self.output = self.suite_name + "_" + self.name + ".xml"
 
@@ -285,12 +295,18 @@ class Pybot():
 			pybotCommand = pybotCommand + self.clientCwd + test + ".txt "
 
 		pybotCmdList = pybotCommand.split()
+
+		if conf['log_collecting']['log_collecting_enabled'] == True:
+			# marking starting time
+			self.host = self.conf['general']['slave_user'] + "@" + self.conf['general']['slaves'][index]
+			self.logger.mark_logs(self.suite_name, self.host)
 	
 		log.msg("Starting pybot", self.name)
 		log.msg(pybotCommand)
 		self.running = True
 		self.process = subprocess.Popen(pybotCmdList,cwd=self.logFolder,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    
+	
+	
 	def isRunning(self):
 		""" Polls the pybot subprocess to check if it's running. Will return true if the process is running.
 		Returns false if the process hasn't been started or has finished already.
@@ -298,10 +314,15 @@ class Pybot():
 		if not self.running:
 			return False
 		elif self.process.poll() == 0 or self.process.returncode >= 0:
+			if self.conf['log_collecting']['log_collecting_enabled'] == True:
+				# marking ending time
+				self.logger.mark_logs_end(self.suite_name, self.host)
+			self.running = False
 			return False
 		else:
 			return True
-    
+	
+	
 	def stop(self):
 		""" Kills the pybot subprocess.
 		"""
