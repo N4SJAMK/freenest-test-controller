@@ -30,6 +30,7 @@ class para():
 		
 		self.log = log
 
+		self.log.msg(testlist)
 		# save current time to calculate execution time at the end of the script
 		self.startTime = datetime.now()
 		
@@ -130,6 +131,7 @@ class para():
 		seri_tests = []
 		retlist = []
 
+
 		for file in self.testlist:
 			suiteOps = settings.RobotSettings()
 			suite = TestSuite(file, suiteOps)
@@ -138,17 +140,17 @@ class para():
 				# special treatment for tests without tags:
 				# include them into serial execution as long as no include tags are defined
 				if not test.tags and len(self.includeTags)==0:
-			       		seri_tests.append(test.name)
+			       		seri_tests.append(file)
 				# tests with tags:
 				# filter excluded tests (if any), then filter included tests (if any), then scan for
 				# parallel keyword and assign to parallel / serial block	
 				elif len(self.excludeTags)==0 or not test._matches_tag(self.excludeTags):
-			       		if len(self.includeTags)==0 or test._matches_tag(self.includeTags):
+					if len(self.includeTags)==0 or test._matches_tag(self.includeTags):
 						if test._matches_tag(self.para_tag):
-			       	        		para_tests.append(test.name)
+							para_tests.append(file)
 						else:
-							seri_tests.append(test.name)
-				#para_tests.append(test.name)
+							seri_tests.append(file)
+				break #check only the first test, otherwise stuff is going to break
 
 		
 		# output serial test list
@@ -292,7 +294,7 @@ class Pybot():
 		for arg in self.args:
                         pybotCommand = pybotCommand + arg + " "
 		for test in self.tests:
-			pybotCommand = pybotCommand + self.clientCwd + test + ".txt "
+			pybotCommand = pybotCommand + test + " "
 
 		pybotCmdList = pybotCommand.split()
 

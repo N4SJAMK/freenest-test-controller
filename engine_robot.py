@@ -74,16 +74,31 @@ class robotEngine(Engine):
                 # name is used so RF doesn't create a huge, nasty looking name for the test suite
 		roboresult = ""
 		foundtests = []
+		listedtests = []
 
                 cmd = self.robot_version + " --name " + testCaseName + " --noncritical noncrit"
 		for arg in self.dyn_args:
 			cmd = cmd + " --variable " + arg[0] + ":" + arg[1]
 
+
+		if str(testList[0]).startswith("list_"):        #the custom field contains a test list file
+			log.msg('Loading tests from external file')
+			if os.path.exists(self.testdir + testList[0]):
+				try:
+					f = open(self.testdir + testList[0], 'r')
+					for line in f:
+						listedtests.append(line.rstrip('\n'))
+					testList = listedtests
+					f.close()
+				except Exception, e:
+					log.msg(e)
+
+
 		for t in testList: 			# checking that tests exist, so the script doesn't fail because of missing tests
                         if os.path.exists(self.testdir + t):
 				foundtests.append(t)
 			else:
-				log.msg('Test not found, skipping ', t)
+				log.msg('Test not found, skipping', t)
 
 
 		if foundtests != []:
@@ -160,11 +175,21 @@ class robotEngine(Engine):
 					outputfile = outputdir + "output.xml"
                         		tree = ET.parse(outputfile)
 
-                        		tests = tree.findall("suite/suite/test")
-					if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
-						tests = tree.findall("suite/test")
+					o = 5
+                                        xmlpath = "suite/test"
+                                        foundtests = []
+                                        while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+                                                tests = tree.findall(xmlpath)
+                                                for test in tests:
+                                                        foundtests.append(test)
+                                                xmlpath = "suite/" + xmlpath
+                                                o = o - 1
 
-                        		for test in tests:
+                        		#tests = tree.findall("suite/suite/test")
+					#if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	tests = tree.findall("suite/test")
+
+                        		for test in foundtests:
                                 		resultnotes.append([])
 						if names_collected == False:
 							testattr = test.attrib
@@ -187,13 +212,23 @@ class robotEngine(Engine):
 					
 					
 					# looping through all tests
-                        		testresults = tree.findall("suite/suite/test/status")
+                        		#testresults = tree.findall("suite/suite/test/status")
 					j = 0
 
-					if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
-						testresults = tree.findall("suite/test/status")
+					o = 5
+                                        xmlpath = "suite/test/status"
+                                        foundtestresults = []
+                                        while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+                                                testresults = tree.findall(xmlpath)
+                                                for test in testresults:
+                                                        foundtestresults.append(test)
+                                                xmlpath = "suite/" + xmlpath
+                                                o = o - 1
 
-					for testresult in testresults:
+					#if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	testresults = tree.findall("suite/test/status")
+
+					for testresult in foundtestresults:
                         			testattrlist = testresult.attrib
 
                         			# counting the results extracted from the XML

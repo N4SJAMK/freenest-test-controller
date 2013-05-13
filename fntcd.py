@@ -59,86 +59,32 @@ class fntcService(xmlrpc.XMLRPC):
     rResult = {}
 
     def executeTestCase(self, data):        
-        log.msg('Got request from testlink')
+        log.msg('Got a request')
         log.msg(data)
-        log.msg('start testlink API')
 
-	try:
-        	# this starts up the Testlink API
-        	client = TestLinkAPI.TestlinkAPIClient(self.SERVER_URL, self.devKey)
+	# getting custom fields from Testlink
+	if self.conf['general']['test_management'] == 'Testlink':
+        	log.msg('start testlink API')
+		api = TestLinkAPI.TestLinkPoller(self.SERVER_URL, self.devKey)
+		fields = api.getCustomFields(data, log, self.conf)
+		
+		cfEngine = fields[0]
+		cfScripts = fields[1]
+		runtimes = fields[2]
+		tolerance = fields[3]
+		tag = fields[4]
 
-        	# polling some needed data from TL database using TestLink API
-        	projectinfo=(client.getProjects())
-        	log.msg('Got Testlink projects info: %s', projectinfo)
-        	'''
-        	 {'testPlanID': '1420', 'executionMode': 'now', 'platformID': 0, 'testCaseID': '1959',
-        	  'buildID': 5, 'testCaseVersionID': 1960, 'testCaseName': 'LoginAdminUser', 'testProjectID': '15'}
-        	'''
-
-        
-        	prefix = ""
-        	i = 0
-        	while prefix == "":
-        	    if projectinfo[i]['id'] == data['testProjectID']:
-        	        prefix = projectinfo[i]['prefix']
-        	    else: 
-        	        i = i + 1
-        	
-        	tcidlist=(client.getTestCaseIDByName(data['testCaseName']))
-        	log.msg('Got test case IDs from poll:', tcidlist)
-	
-		#this part needed to be made more specific since TestLinkAPI returns all similarly named test cases from all projects
-		i = 0
-		while i < len(tcidlist):
-        		tcinfo=(client.getTestCase(prefix + "-" + tcidlist[i]['tc_external_id']))
-			if 'full_tc_external_id' in tcinfo[0]:
-				if tcinfo[0]['full_tc_external_id'] == (prefix + "-" + tcidlist[i]['tc_external_id']):
-					break
-				else:
-					i = i + 1
-			else:
-				i = i + 1
-
-		if 'full_tc_external_id' in tcinfo[0]:
-			log.msg('Got test case information from poll:', tcinfo[0])
-		else:
-			raise Exception('Failed to find correct test case information')
-
-        	tclist=(client.getTestCasesForTestPlan(data['buildID']))
-        	log.msg('Got all test cases for Plan')
-
-        	cfEngine=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", ""))
-        	log.msg('Got engine from custom field:', cfEngine)
-
-        	cfScripts=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", ""))
-        	log.msg('Got runnable tests from custom field:', cfScripts)  
-        
-        	runtimes=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
-        	log.msg('Got runtimes from custom field:', runtimes)
-
-        	tolerance=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
-        	log.msg('Got tolerance from custom field:', tolerance)
-
-		tag=(client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", ""))
-		if tag == "":
-			tag = "null"
-			log.msg('No tags found, going to run the newest tests.')
-		else:
-                	log.msg('Got version tag from custom field:', tag)
-
-	except Exception, e:
-                #TestlinkAPI might be broken
-                log.msg('Getting data with TestlinkAPI failed:', str(e))
-                log.msg('Using default values')
-
-                cfEngine = "robotEngine"
-                cfScripts = data['testCaseName'] + ".txt"
-                runtimes = 5
-                tolerance = 80
+	else:
+		# no place to look for variables, using the default ones from config
+		cfEngine = self.conf['variables']['default_engine']
+		cfScripts = data['testCaseName'] + ".txt"
+		runtimes = int(self.conf['variables']['default_runtimes'])
+		tolerance = int(self.conf['variables']['default_runtimes'])
 		tag = "null"
 
 
         # checking the version control software and choosing the correct driver
+	#TODO: this part could be more flexible
 	#GIT
 	if self.versioncontrol == "GIT":
 		puller = gitpuller()
@@ -169,22 +115,24 @@ class fntcService(xmlrpc.XMLRPC):
 
 
         ''' talk with main program, send data and expect result '''
-        log.msg('Running following scripts', cfScripts)
+        log.msg('Running following scripts:', cfScripts)
         f = fntc()
         try:
             runtimes = int(runtimes)
         except Exception, e:
             # runtimes is not a number
-            log.msg('Custom field "RunTimes" contains an invalid value, tests will be run only once')
-            runtimes = 1
+            log.msg('"RunTimes" contains an invalid value, using default value')
+            runtimes = int(self.conf['variables']['default_runtimes'])
         try:
             tolerance = int(tolerance)
         except Exception, e:
-            log.msg('Custom field "Tolerance" contains an invalid value, resetting to default')
-            tolerance = 100
+            log.msg('"Tolerance" contains an invalid value, using default value')
+            tolerance = int(self.conf['variables']['default_tolerance'])
 
+	# calling the FNTC core
         (result, notes, timestamp) = f.fntc_main(self.conf, cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, testdir, 'now', data['testCaseName'])
 
+	# processing results to be sent back to TestLink / whoever called
         if(result == 1):
             self.rResult['result'] = 'p'
         elif(result == 0):
@@ -202,14 +150,28 @@ class fntcService(xmlrpc.XMLRPC):
         log.msg('-----------------------------------------------------')
         return {'result':self.rResult['result'],'notes':self.rResult['notes'], 'scheduled':'now', 'timestampISO':self.rResult['timestampISO']}
 
+    def onError(self, result):
+	#TODO:: add better logging info and return of results
+	log.msg('Something went wrong on threading execution.')
+
+    def onExecutionDone(self, result):
+	log.msg('returning deferred results')
+	return result
+
     def xmlrpc_executeTestCase(self, data):
-        return threads.deferToThread(self.executeTestCase, data)
+        deferred = threads.deferToThread(self.executeTestCase, data)
+	deferred.addCallback(self.onExecutionDone)
+	deferred.addErrback(self.onError)
         #value = self.executeTestCase(data)
         #log.msg(value)
         #return  {'result':'p', 'notes':'Message', 'scheduled':'now', 'timestampISO':'2012-09-26 11:33:08'}
+	return deferred
 
 
 if __name__ == '__main__':
+    from twisted.internet import selectreactor
+    selectreactor.install ()
+
     from twisted.internet import reactor
     import sys
     log.startLogging(sys.stdout)

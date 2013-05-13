@@ -71,34 +71,48 @@ class gridEngine(Engine):
 		# building the command that is sent to RF
                 # name is used so RF doesn't create a huge, nasty looking name for the test suite
 		gridresult = ""
+		listedtests = []
 		foundtests = []
 
                 tests = ""
 
+		log.msg(testList[0])
+                if str(testList[0]).startswith("list_"):	#the custom field contains a test list file
+			log.msg('Loading tests from external file')
+			if os.path.exists(self.testdir + testList[0]):
+				f = open(self.testdir + testList[0], 'r')
+				for line in f:
+					listedtests.append(line.rstrip('\n'))
+				testList = listedtests
+				f.close()
+
+
 		for t in testList: 			# checking that tests exist, so the script doesn't fail because of a missing test
                         if os.path.exists(self.testdir + t):
 				if os.path.isdir(self.testdir + t):
-					for dirname, dirnames, filenames in os.walk(self.testdir + t):
-						# editing the 'dirnames' list will stop os.walk() from recursing into there.
-                                                if '.git' in dirnames:
-                                                        # don't go into any .git directories.
-                                                        dirnames.remove('.git')
+					#the given path is a directory. Should all directories be given separately or would giving the root run all tests?
+					#for dirname, dirnames, filenames in os.walk(self.testdir + t):
+					#	log.msg(dirnames)
+					#	#dirnames = [] #wiping dirnames so only the tests in current directory are run
+					#	# editing the 'dirnames' list will stop os.walk() from recursing into there.
+					#	if '.git' in dirnames:
+					#		# don't go into any .git directories.
+					#		dirnames.remove('.git')
+					#log.msg(os.listdir(self.testdir + t))
+					for filename in os.listdir(self.testdir + t):
 
-						# print path to all filenames.
-						for filename in filenames:
-							#should match to supported filetypes
-							ext = ".txt", ".html", ".htm", ".xhtml", ".tsv", ".robot", ".rst", ".rest"
-							if filename.endswith(ext):
-								foundtests.append(filename)
-							else:
-								pass
-
+					# print path to all filenames.
+					#for filename in filenames:
+					#should match to supported filetypes
+						ext = ".txt", ".html", ".htm", ".xhtml", ".tsv", ".robot", ".rst", ".rest"
+						if filename.endswith(ext):
+							foundtests.append(t + filename)
+						else:
+							pass
 				else:
 					foundtests.append(t)
-
-
 			else:
-				log.msg('Skipping test', t)
+				log.msg('Test not found, skipping', t)
 
 
 		if foundtests != []:
@@ -163,15 +177,25 @@ class gridEngine(Engine):
                 		try:
 					outputfile = outputdir + "para_output.xml"
                         		tree = ET.parse(outputfile)
+					
+					o = 5
+					xmlpath = "suite/test"
+					foundtests = []
+					while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+						tests = tree.findall(xmlpath)
+						for test in tests:
+							foundtests.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
-                        		tests = tree.findall("suite/suite/test")
-					if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
-						tests = tree.findall("suite/test")
-						if tests == []: # when there are more test suites
-							tests = tree.findall("suite/suite/suite/test")
+                        		#tests = tree.findall("suite/suite/test")
+					#if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	tests = tree.findall("suite/test")
+					#	if tests == []: # when there are more test suites
+					#		tests = tree.findall("suite/suite/suite/test")
 
-                        		for test in tests:
-                                		resultnotes.append([])
+					for test in foundtests:
+						resultnotes.append([])
 						if names_collected == False:
 							testattr = test.attrib
 							names.append(testattr['name'])
@@ -193,15 +217,26 @@ class gridEngine(Engine):
 					
 					
 					# looping through all tests
-                        		testresults = tree.findall("suite/suite/test/status")
+					# TODO: make it flexible!
+                        		#testresults = tree.findall("suite/suite/test/status")
 					j = 0
 
-					if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
-						testresults = tree.findall("suite/test/status")
-						if testresults == []: # when there are more test suites 
-							testresults = tree.findall("suite/suite/suite/test/status")
+					o = 5
+                                        xmlpath = "suite/test/status"
+                                        foundtestresults = []
+                                        while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+						testresults = tree.findall(xmlpath)
+						for test in testresults:
+							foundtestresults.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
-					for testresult in testresults:
+					#if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	testresults = tree.findall("suite/test/status")
+					#	if testresults == []: # when there are more test suites 
+					#		testresults = tree.findall("suite/suite/suite/test/status")
+
+					for testresult in foundtestresults:
                         			testattrlist = testresult.attrib
 
                         			# counting the results extracted from the XML

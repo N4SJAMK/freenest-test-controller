@@ -61,14 +61,14 @@ class fntc:
 			        		#look through this dictionary for the correct class
 			        		for key, entry in d.items():
 			        		    	if key == cls.__name__:
-			        		        	continue 		
-			            			try:
-			                			if issubclass(entry, cls):
-			                				log.msg("Found engine:", key)
-			                		    	engines.append(entry)
-			            			except TypeError:
-			                			#this happens when a non-type is passed in to issubclass. Non-types can't be instances, so they will be ignored.
-			                			continue			
+			        		        	continue
+							try:
+								if issubclass(entry, cls):
+									log.msg("Found engine:", key)
+							    		engines.append(entry)
+							except TypeError:
+								#this happens when a non-type is passed in to issubclass. Non-types can't be instances, so they will be ignored.
+								continue			
 					except Exception, e:
 						# if something goes wrong while loading modules, loading is aborted
 						log.msg('Error while loading modules:', str(e))						
@@ -95,13 +95,6 @@ class fntc:
 			#resultstring = "b@@The correct testing engine was not found, tests cannot be run. Check the custom field value.@@" + timestamp + "@@now"
 			return (-1, 'Test engine was not found, check custom fields', timestamp)
 		else:
-			# pull the latest test script versions from Git
-			# TODO: maybe add a custom field / configuration and code for pulling from svn?
-	    #    	gitresult = puller.pull(cftestdir)
-	    #    	if gitresult != "ok":
-		#			log.msg('Git error: "%s", running old tests...', gitresult)
-		#			#engine_state = 0			
-
 			# getting testing scripts
 			scriptlist = cfscripts.split()
 
@@ -116,7 +109,6 @@ class fntc:
 					t = datetime.now()
 					timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
 					log.msg('Engine error: ', engineresult)
-					#resultstring = "b@@Engine error: " + engineresult + "@@" + timestamp + "@@now"
 					return (-1, 'Engine error: ' + engineresult, timestamp)
 					engine_state = 0
 
