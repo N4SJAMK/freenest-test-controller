@@ -26,7 +26,7 @@ from twisted.internet import threads
 
 
 #   import xmlrpclib
-import TestLinkAPI
+from fntc import TestLinkAPI
 import sys, os, time 
 #import subprocess
 from twisted.python import log  
@@ -34,8 +34,8 @@ import yaml
 #from config import conf
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from git_puller import gitpuller
-from svn_puller import svnpuller
+from fntc import git_puller
+from fntc import svn_puller
 #from engine_robot import robotEngine
 #from engine import Engine
 from fntc import fntc
@@ -46,7 +46,7 @@ class fntcService(xmlrpc.XMLRPC):
     An example object to be published.
     """
 
-    f = open('testlink_client.conf')
+    f = open('/usr/share/pyshared/fntc/testlink_client.conf')
     conf = yaml.load(f)
     f.close
 
@@ -170,7 +170,7 @@ class fntcService(xmlrpc.XMLRPC):
 
 if __name__ == '__main__':
     from twisted.internet import selectreactor
-    selectreactor.install ()
+    #selectreactor.install ()
 
     from twisted.internet import reactor
     import sys
