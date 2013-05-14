@@ -5,8 +5,8 @@ clean:
 install:
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
-	cp fntcd.py $(BINDIR)
+	cp fntcd $(BINDIR)
 	cp -r fntc $(LIBDIR)
 uninstall:
-	rm -f $(BINDIR)/fntcd.py
+	rm -f $(BINDIR)/fntcd
 	rm -rf $(LIBDIR)/fntc
