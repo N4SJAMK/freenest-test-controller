@@ -46,7 +46,7 @@ class fntcService(xmlrpc.XMLRPC):
     An example object to be published.
     """
 
-    f = open('/usr/share/pyshared/fntc/testlink_client.conf')
+    f = open('/etc/fntc.conf')
     conf = yaml.load(f)
     f.close
 
