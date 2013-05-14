@@ -8,6 +8,6 @@ Homepage: http://www.freenest.org
 
 Package: fntc
 Architecture: all
-Depends: python (>= 2.6)
+Depends: python (>= 2.7)
 Description: This is FreeNest test client package to run tests from FreeNest/Testlink.
 
