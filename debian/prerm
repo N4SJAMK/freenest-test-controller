@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+case "$1" in
+    remove)
+    rm -f /usr/lib/python2.7/dist-packages/fntc
+    rm -f /usr/share/pyshared/fntc/*.pyc
+    ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+exit 0
