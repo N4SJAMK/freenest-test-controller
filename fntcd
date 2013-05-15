@@ -25,20 +25,15 @@ from twisted.python import log
 from twisted.internet import threads
 
 
-#   import xmlrpclib
 from fntc import TestLinkAPI
 import sys, os, time 
-#import subprocess
 from twisted.python import log  
 import yaml 
-#from config import conf
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from fntc import git_puller
-from fntc import svn_puller
-#from engine_robot import robotEngine
-#from engine import Engine
-from fntc import fntc
+from fntc.git_puller import gitpuller
+from fntc.svn_puller import svnpuller
+from fntc.fntc import fntc
 
 
 class fntcService(xmlrpc.XMLRPC):
@@ -79,7 +74,7 @@ class fntcService(xmlrpc.XMLRPC):
 		cfEngine = self.conf['variables']['default_engine']
 		cfScripts = data['testCaseName'] + ".txt"
 		runtimes = int(self.conf['variables']['default_runtimes'])
-		tolerance = int(self.conf['variables']['default_runtimes'])
+		tolerance = int(self.conf['variables']['default_tolerance'])
 		tag = "null"
 
 

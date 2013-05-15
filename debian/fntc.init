@@ -20,19 +20,19 @@
 
 case "$1" in
   start)
-    echo "Starting fntcservice"
-    # Start the daemon 
-    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntcservice/fntcservice.pid --logfile=/var/log/fntcservice.log -y /usr/bin/fntcd.py
+    echo "Starting fntc service"
+    # Start the daemon
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntcd.pid --logfile=/var/log/fntcd.log -y /usr/bin/fntcd
     ;;
   stop)
-    echo "Stopping fntcservice"
+    echo "Stopping fntc service"
     # Stop the daemon
-    kill `cat /var/run/fntcservice/fntcservice.pid`
+    kill `cat /var/run/fntcd.pid`
     ;;
   restart)
-    echo "Restarting fntcservice"
-    kill `cat /var/run/fntcservice/fntcservice.pid`
-    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntcservice/fntcservice.pid --logfile=/var/log/fntcservice -y /usr/bin/fntcd.py
+    echo "Restarting fntc service"
+    kill `cat /var/run/fntcd.pid`
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntcd.pid --logfile=/var/log/fntcd.log -y /usr/bin/fntcd
     ;;
   *)
     echo "Usage: /etc/init.d/fntcd.sh {start|stop|restart}"
