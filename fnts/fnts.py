@@ -19,7 +19,7 @@
 """
 
 
-import TestLinkAPI
+import testlink.testlinkapi
 import sys, os, time
 from twisted.python import log
 import yaml
@@ -28,8 +28,8 @@ from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
 
-class fntc:
-	def fntc_main(self, conf, cfengine, cfscripts, cfruntimes, cftolerance, cfoutputdir, cftestdir, cfscheduled, cftestname):
+class fnts:
+	def fnts_main(self, conf, cfengine, cfscripts, cfruntimes, cftolerance, cfoutputdir, cftestdir, cfscheduled, cftestname):
 
 		engine_state = 1
 		engine_defined = False
@@ -37,14 +37,14 @@ class fntc:
 		engines = []
 		results = []
 
-		path ="/usr/share/pyshared/fntc"
+		path ="/usr/share/pyshared/fnts"
 		for root, dirs, files in os.walk(path):
 			for name in files:
 				if name.endswith(".py") and name.startswith("engine_"):
 					path = os.path.join(root, name)
 					modulename = path.rsplit('.', 1)[0].replace('/', '.')
 					modulename = modulename.rsplit('.', 1)[1]
-					fntcprefix = "fntc." + modulename
+					fntcprefix = "fnts." + modulename
 					try:
 						log.msg("Checking module:", modulename)
 			        		module = __import__(fntcprefix)

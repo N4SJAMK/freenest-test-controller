@@ -2,11 +2,11 @@
 set -e
 case "$1" in
     configure)
-    ln -s /usr/share/pyshared/fntc /usr/lib/python2.7/dist-packages/
+    ln -s /usr/share/pyshared/fnts /usr/lib/python2.7/dist-packages/
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
-    rm -f /usr/lib/python2.7/dist-packages/fntc
+    rm -f /usr/lib/python2.7/dist-packages/fnts
     ;;
 
     *)

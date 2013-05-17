@@ -5,9 +5,9 @@ clean:
 install:
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
-	cp fntcd $(BINDIR)
-	cp -r fntc $(LIBDIR)
-	cp fntc/fntc.conf $(DESTDIR)/etc/fntc.conf
+	cp fntsd $(BINDIR)
+	cp -r fnts $(LIBDIR)
+	cp fnts/fnts.conf $(DESTDIR)/etc/fnts.conf
 uninstall:
-	rm -f $(BINDIR)/fntcd
-	rm -rf $(LIBDIR)/fntc
+	rm -f $(BINDIR)/fntsd
+	rm -rf $(LIBDIR)/fnts

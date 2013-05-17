@@ -25,23 +25,23 @@ from twisted.python import log
 from twisted.internet import threads
 
 
-from fntc import TestLinkAPI
+#from fnts.testlink import testlinkapi
 import sys, os, time 
 from twisted.python import log  
 import yaml 
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from fntc.git_puller import gitpuller
-from fntc.svn_puller import svnpuller
-from fntc.fntc import fntc
+from fnts.git_puller import gitpuller
+from fnts.svn_puller import svnpuller
+from fnts.fnts import fnts
+from fnts.TestLinkPoller import TestLinkPoller
 
-
-class fntcService(xmlrpc.XMLRPC):
+class fntsDaemon(xmlrpc.XMLRPC):
     """
     An example object to be published.
     """
 
-    f = open('/etc/fntc.conf')
+    f = open('/etc/fnts.conf')
     conf = yaml.load(f)
     f.close
 
@@ -60,7 +60,7 @@ class fntcService(xmlrpc.XMLRPC):
 	# getting custom fields from Testlink
 	if self.conf['general']['test_management'] == 'Testlink':
         	log.msg('start testlink API')
-		api = TestLinkAPI.TestLinkPoller(self.SERVER_URL, self.devKey)
+		api = TestLinkPoller(self.SERVER_URL, self.devKey)
 		fields = api.getCustomFields(data, log, self.conf)
 		
 		cfEngine = fields[0]
@@ -111,7 +111,7 @@ class fntcService(xmlrpc.XMLRPC):
 
         ''' talk with main program, send data and expect result '''
         log.msg('Running following scripts:', cfScripts)
-        f = fntc()
+        f = fnts()
         try:
             runtimes = int(runtimes)
         except Exception, e:
@@ -125,7 +125,7 @@ class fntcService(xmlrpc.XMLRPC):
             tolerance = int(self.conf['variables']['default_tolerance'])
 
 	# calling the FNTC core
-        (result, notes, timestamp) = f.fntc_main(self.conf, cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, testdir, 'now', data['testCaseName'])
+        (result, notes, timestamp) = f.fnts_main(self.conf, cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, testdir, 'now', data['testCaseName'])
 
 	# processing results to be sent back to TestLink / whoever called
         if(result == 1):
@@ -146,7 +146,7 @@ class fntcService(xmlrpc.XMLRPC):
         return {'result':self.rResult['result'],'notes':self.rResult['notes'], 'scheduled':'now', 'timestampISO':self.rResult['timestampISO']}
 
     def onError(self, result):
-	#TODO:: add better logging info and return of results
+        log.msg(result)
 	log.msg('Something went wrong on threading execution.')
 
     def onExecutionDone(self, result):
@@ -170,13 +170,13 @@ if __name__ == '__main__':
     from twisted.internet import reactor
     import sys
     log.startLogging(sys.stdout)
-    r = fntcService()
+    r = fntsDaemon()
     reactor.listenTCP(8000, server.Site(r))
     reactor.run()    
 
 else: # run the worker as a twistd service application: twistd -y xmlrpc_server.py --no_save
     from twisted.application import service, internet        
-    application = service.Application('fntcservice')
-    r = fntcService()
+    application = service.Application('fnts')
+    r = fntsDaemon()
     website = internet.TCPServer(8000, server.Site(r))
     website.setServiceParent(application)

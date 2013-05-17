@@ -1,4 +1,4 @@
-Source: fntc
+Source: fnts
 Section: python
 Priority: extra
 Maintainer: Mikko Ojala 
@@ -6,8 +6,8 @@ Build-Depends: debhelper (>= 7), python-support
 Standards-Version: 3.8.0
 Homepage: http://www.freenest.org
 
-Package: fntc
+Package: fnts
 Architecture: all
 Depends: python (>= 2.7), python-yaml, python-twisted
-Description: This is FreeNest test client package to run tests from FreeNest/Testlink.
+Description: This is FreeNest test service package to run tests from FreeNest/Testlink.
 

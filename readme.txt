@@ -1,4 +1,4 @@
-FreeNest Test Client (fntc)
+FreeNest Test Service (fnts)
 
 Overview
 

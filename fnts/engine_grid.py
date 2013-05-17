@@ -18,105 +18,115 @@
 
 import socket
 import base64
-import TestLinkAPI
 import sys, os, time
 import subprocess
+
+from twisted.python import log
 import yaml
 
 from datetime import datetime
 from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
-
-from twisted.python import log
+from parabot import para
 from log_collector import logcollector
+import testlink.testlinkapi
 
-class robotEngine(Engine):
+
+class gridEngine(Engine):
 
 	def __init__(self, conf, tcID, vOutputdir, testdir, vScheduled):
-		# loading robot specific configs
-		self.vOutputdir = vOutputdir
-		self.testdir = testdir
+        	# loading grid specific configs
+		#f = open('/home/adminuser/fntc/testlink_client.conf')
+        	#conf = yaml.load(f)
+        	#f.close
+
+        	self.robot_version = conf['robot']['version']
+		self.devKey = conf['testlink']['devkey']
+		self.SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
+
+        	self.vOutputdir = vOutputdir
+        	self.testdir = testdir
+
+		self.conf = conf
+		self.hosts = []
 
 		self.scheduled = vScheduled
 		self.notes = ""
-		self.result = -1
+		self.result = -2
 		self.timestamp = ""
-
-		#f = open('/home/adminuser/fntc/testlink_client.conf')
-                #conf = yaml.load(f)
-                #f.close
-
-		self.SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
-    		self.devKey = conf['testlink']['devkey']
-        	self.robot_version = conf['robot']['version']
-		self.dyn_args = conf['variables']['dyn_args']
-
-		self.slaves = conf['general']['slaves']
-		self.slave_user = conf['general']['slave_user']
-	
-		self.conf = conf
 
 		self.tcID = tcID
 
 		self.logger = logcollector()
-		self.host = ""
 
-		log.msg('RobotEngine: Engine loaded')
+		log.msg('Engine succesfully loaded')
 
 
     	def run_tests(self, testCaseName, testList, runTimes):
         	# using subprocess for running robot, cwd is the working directory
         	# stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
-        	# or a file object if you want the output to be written in a file.
+        	# or f if you want the output to be written in a file.
 
 		# building the command that is sent to RF
                 # name is used so RF doesn't create a huge, nasty looking name for the test suite
-		roboresult = ""
-		foundtests = []
+		gridresult = ""
 		listedtests = []
+		foundtests = []
 
-                cmd = self.robot_version + " --name " + testCaseName + " --noncritical noncrit"
-		for arg in self.dyn_args:
-			cmd = cmd + " --variable " + arg[0] + ":" + arg[1]
+                tests = ""
 
-
-		if str(testList[0]).startswith("list_"):        #the custom field contains a test list file
+		log.msg(testList[0])
+                if str(testList[0]).startswith("list_"):	#the custom field contains a test list file
 			log.msg('Loading tests from external file')
 			if os.path.exists(self.testdir + testList[0]):
-				try:
-					f = open(self.testdir + testList[0], 'r')
-					for line in f:
-						listedtests.append(line.rstrip('\n'))
-					testList = listedtests
-					f.close()
-				except Exception, e:
-					log.msg(e)
+				f = open(self.testdir + testList[0], 'r')
+				for line in f:
+					listedtests.append(line.rstrip('\n'))
+				testList = listedtests
+				f.close()
 
 
-		for t in testList: 			# checking that tests exist, so the script doesn't fail because of missing tests
+		for t in testList: 			# checking that tests exist, so the script doesn't fail because of a missing test
                         if os.path.exists(self.testdir + t):
-				foundtests.append(t)
+				if os.path.isdir(self.testdir + t):
+					#the given path is a directory. Should all directories be given separately or would giving the root run all tests?
+					#for dirname, dirnames, filenames in os.walk(self.testdir + t):
+					#	log.msg(dirnames)
+					#	#dirnames = [] #wiping dirnames so only the tests in current directory are run
+					#	# editing the 'dirnames' list will stop os.walk() from recursing into there.
+					#	if '.git' in dirnames:
+					#		# don't go into any .git directories.
+					#		dirnames.remove('.git')
+					#log.msg(os.listdir(self.testdir + t))
+					for filename in os.listdir(self.testdir + t):
+
+					# print path to all filenames.
+					#for filename in filenames:
+					#should match to supported filetypes
+						ext = ".txt", ".html", ".htm", ".xhtml", ".tsv", ".robot", ".rst", ".rest"
+						if filename.endswith(ext):
+							foundtests.append(t + filename)
+						else:
+							pass
+				else:
+					foundtests.append(t)
 			else:
 				log.msg('Test not found, skipping', t)
 
 
 		if foundtests != []:
 			for ft in foundtests:                      # adding found tests to the command
-				cmd = cmd + " " + self.testdir + ft
+				tests = tests + " " + self.testdir + ft
 		else:	# and if no tests were found...
 			log.msg('No runnable tests found!')
-			roboresult = "No runnable tests found!"
+			gridresult = "No runnable tests found!"
 
 	
-		cmdlist = cmd.split()
-
-		log.msg('got following values', testCaseName, testList, runTimes)
-		log.msg('running tests', runTimes, 'times')
-
+		testlist = tests.split()
 
 		i = 1
-		if roboresult == "":
+		if gridresult == "":
 			while i <= runTimes:
         			try:
 					# output directory, each test case has its own folder and if one doesn't exist, it will be created.
@@ -124,42 +134,35 @@ class robotEngine(Engine):
 
                 			if not os.path.exists(outputdir):
                         			os.makedirs(outputdir)
-					
-					if self.conf['log_collecting']['log_collecting_enabled'] == True:
-						# marking starting time
-						self.host = self.slave_user + "@" + self.slaves[0]
-						self.logger.mark_logs(testCaseName, self.host)
 
-                			log.msg('Running command:', cmd)
+                			log.msg('Sending tests for parabot:', tests)
 
-                			robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-                			
-					if self.conf['log_collecting']['log_collecting_enabled'] == True:
-						# marking ending time
-						self.logger.mark_logs_end(testCaseName, self.host)
+                			#robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+					parabot = para(self.conf, testCaseName, outputdir, self.testdir, testlist)
+					grid = parabot.run()
+					self.hosts = grid
 
 					# check and raise an exception if Robot fails to start
-                		        if str(robo[1]) != '':
-                		               raise Exception(str(robo[1]))
+                		        if grid[0] != "ok":
+                		               raise Exception(grid[0])
                 		        else:
-                		               roboresult = "ok"
+                		               gridresult = "ok"
 						
 
 				except Exception, e:
-					roboresult = str(e)
+					gridresult = str(e)
 					break	# only if robot fails to start or something is seriously wrong
 
 				i = i + 1
 
-
-		return roboresult
+		return gridresult
 				
 
 
 	def get_test_results(self, testCaseName, runTimes, tolerance):
 		# Trying to get the results from output.xml, which is located in outputdir
 		
-		if self.result == -1:
+		if self.result == -2:
 			passes = [0, 0, 0]	# first number is critical tests, second one is total tests, the rest are individual tests
 			fails = [0, 0, 0]	# more will be added while going through the results
 			resultnotes = []	# for test notes, passed tests say PASSED, failed ones give an error message
@@ -172,25 +175,27 @@ class robotEngine(Engine):
 
 				outputdir = self.vOutputdir + testCaseName + "/" + str(i) + "/"
                 		try:
-					outputfile = outputdir + "output.xml"
+					outputfile = outputdir + "para_output.xml"
                         		tree = ET.parse(outputfile)
-
+					
 					o = 5
-                                        xmlpath = "suite/test"
-                                        foundtests = []
-                                        while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
-                                                tests = tree.findall(xmlpath)
-                                                for test in tests:
-                                                        foundtests.append(test)
-                                                xmlpath = "suite/" + xmlpath
-                                                o = o - 1
+					xmlpath = "suite/test"
+					foundtests = []
+					while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+						tests = tree.findall(xmlpath)
+						for test in tests:
+							foundtests.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
                         		#tests = tree.findall("suite/suite/test")
 					#if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
 					#	tests = tree.findall("suite/test")
+					#	if tests == []: # when there are more test suites
+					#		tests = tree.findall("suite/suite/suite/test")
 
-                        		for test in foundtests:
-                                		resultnotes.append([])
+					for test in foundtests:
+						resultnotes.append([])
 						if names_collected == False:
 							testattr = test.attrib
 							names.append(testattr['name'])
@@ -212,6 +217,7 @@ class robotEngine(Engine):
 					
 					
 					# looping through all tests
+					# TODO: make it flexible!
                         		#testresults = tree.findall("suite/suite/test/status")
 					j = 0
 
@@ -219,14 +225,16 @@ class robotEngine(Engine):
                                         xmlpath = "suite/test/status"
                                         foundtestresults = []
                                         while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
-                                                testresults = tree.findall(xmlpath)
-                                                for test in testresults:
-                                                        foundtestresults.append(test)
-                                                xmlpath = "suite/" + xmlpath
-                                                o = o - 1
+						testresults = tree.findall(xmlpath)
+						for test in testresults:
+							foundtestresults.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
 					#if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
 					#	testresults = tree.findall("suite/test/status")
+					#	if testresults == []: # when there are more test suites 
+					#		testresults = tree.findall("suite/suite/suite/test/status")
 
 					for testresult in foundtestresults:
                         			testattrlist = testresult.attrib
@@ -254,7 +262,7 @@ class robotEngine(Engine):
                         		t = datetime.now()
                                         self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
 					
-					log.msg('Got results from output.xml')
+					log.msg('Got results from xml-files')
 
             			except Exception, e:
                         		# if something goes wrong, the message and blocked result are returned to Testlink
@@ -263,12 +271,11 @@ class robotEngine(Engine):
                         		t = datetime.now()
                         		self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
                         		log.msg('xml error:', str(e))
-                        		return (self.result, self.notes, self.timestamp)
 				
 				i = i + 1		
 
 
-		if self.result == -1:
+		if self.result == -2:
 			# combining all the notes to be returned
 			if fails[0] != 0:
 				self.result = 0
@@ -297,9 +304,8 @@ class robotEngine(Engine):
 				
 				if self.conf['log_collecting']['log_collecting_enabled'] == True:
 					# tests failed, so we need to fetch the logs to see what went wrong
-					host = []
-					host.append(self.host)
-					self.logger.collect_logs(self.vOutputdir, testCaseName, host)
+					self.hosts.pop(0)
+					self.logger.collect_logs(self.vOutputdir, testCaseName, self.hosts)
 					log.msg('Logs were fetched to', (self.vOutputdir + testCaseName))
 
 			# results for each test separately
@@ -320,7 +326,7 @@ class robotEngine(Engine):
 			# Here the original Robot Framework reports are made visible. A link is generated for each report, so the user only
 			# needs to go to the address to see an accurate report about what has happened. 
 			noproblems = 1
-			try:
+			"""try:
 				#getting the ip from Google
 				s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 				s.connect(("8.8.8.8",80))
@@ -328,29 +334,32 @@ class robotEngine(Engine):
 				s.close()
 
 			except Exception, e:	# if the socket fails for some reason...
-				log.msg("SOCKET ERROR:", str(e))
+				log.msg("SOCKET ERROR: %s", str(e))
 				noproblems = 0
 				self.notes = self.notes + "Failed to create links for accurate reports. \nCheck the log for details.\n"
  
 
-			#if noproblems == 1:
-		#		self.notes = self.notes + "See accurate reports here: \n"
-		#		i = 1
-		#		while i <= runTimes:
-		#			#self.notes = self.notes + str(i) + ". http://" + ip + self.vOutputdir.split('www')[1] + testCaseName + "/" + str(i) + "/report.html\n"
-					#i = i + 1		
+			if noproblems == 1:
+				self.notes = self.notes + "See accurate reports here: \n"
+				i = 1
+				while i <= runTimes:
+					self.notes = self.notes + str(i) + ". http://" + ip + self.vOutputdir.split('www')[1] + testCaseName + "/" + str(i) + "/report.html\n"
+					i = i + 1
+			"""		
 
 		# creating the list of results
 		results = []
-		results.append(self.result)
+        	results.append(self.result)
 		results.append(self.notes)
 		#results.append(self.scheduled)
 		results.append(self.timestamp)
 
+		#log.msg('grid returns:', results)
+
 		# pack and upload results
 		#self.upload_results(testCaseName, runTimes)
 		
-		return results
+        	return results
 
 
 	def get_testcases(self):
@@ -406,7 +415,7 @@ class robotEngine(Engine):
 			if no_problems == 1:
 				try:
 					# uploading the package
-					client = TestLinkAPI.TestlinkAPIClient(self.SERVER_URL, self.devKey)
+					client = testlink.testlinkapi.TestlinkAPIClient(self.SERVER_URL, self.devKey)
 					up = client.uploadTestCaseAttachment(self.tcID, "results", "Reports from Robot Framework", filename + "_b64.zip", "zip", outputdir + filename + "_b64.zip")
 					log.msg(str(up))
 
