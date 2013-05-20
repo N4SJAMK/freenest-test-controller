@@ -3,3 +3,4 @@ debian/tmp
 debian/substvars
 debian/debhelper.log
 *.debhelper
+*.pyc

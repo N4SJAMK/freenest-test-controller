@@ -1,0 +1,19 @@
+PARAM=$1
+WD=$(pwd)
+
+if [ "$1" == "remove" ]
+then
+
+echo "remove"
+rm -v /usr/bin/fntsd
+rm -v /usr/share/pyshared/fnts
+rm -v /etc/init.d/fnts
+
+else
+
+echo "install"
+ln -sv ${WD}/fnts /usr/share/pyshared/fnts
+ln -sv ${WD}/fntsd /usr/bin/fntsd
+ln -sv ${WD}/debian/fnts.init /etc/init.d/fnts
+       
+fi
