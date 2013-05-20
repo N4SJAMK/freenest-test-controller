@@ -1,4 +1,5 @@
 debian/files
 debian/tmp
 debian/substvars
+debian/debhelper.log
 *.debhelper
