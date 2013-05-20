@@ -89,7 +89,8 @@ class TestLinkPoller:
             log.msg('Getting data with TestlinkAPI failed:', str(e))
             log.msg('Using default values')
 
-            fields.append("robotEngine")
+            fields.append(conf['variables']['default_engine'])
+
             fields.append(data['testCaseName'] + ".txt")
             fields.append(conf['variables']['default_runtimes'])
             fields.append(conf['variables']['default_tolerance'])
