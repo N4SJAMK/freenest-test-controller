@@ -1,3 +1,5 @@
+#!/bin/sh
+
 PARAM=$1
 WD=$(pwd)
 
@@ -16,6 +18,6 @@ echo "install"
 ln -sv ${WD}/fnts /usr/share/pyshared/fnts
 ln -sv ${WD}/fntsd /usr/bin/fntsd
 ln -sv ${WD}/debian/fnts.init /etc/init.d/fnts
-ln -sv ${WD}/fnts/fnts.conf /etc/fnts.conf       
+ln -sv ${WD}/fnts/fnts.conf /etc/fnts.conf
 
 fi
