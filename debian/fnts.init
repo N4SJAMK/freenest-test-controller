@@ -20,17 +20,17 @@
 
 case "$1" in
   start)
-    echo "Starting fnts service"
+    echo "Starting fnts daemon"
     # Start the daemon
     twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
     ;;
   stop)
-    echo "Stopping fnts service"
+    echo "Stopping fnts daemon"
     # Stop the daemon
     kill `cat /var/run/fntsd.pid`
     ;;
   restart)
-    echo "Restarting fnts service"
+    echo "Restarting fnts daemon"
     kill `cat /var/run/fntsd.pid`
     twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
     ;;

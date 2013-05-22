@@ -2,7 +2,8 @@
 #added 12 Apr 2013
 #author: Niko Korhonen
 
-from testlink.testlinkapi import TestlinkAPIClient
+#from testlink.testlinkapi import TestlinkAPIClient
+from TestLinkAPI import TestlinkAPIClient
 
 class TestLinkPoller:
     def __init__(self, server_url, devKey):

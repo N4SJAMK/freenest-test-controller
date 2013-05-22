@@ -49,7 +49,7 @@ class fntsDaemon(xmlrpc.XMLRPC):
     vTestdir = conf['general']['testingdirectory']
     versioncontrol = conf['general']['versioncontrol']
     
-    SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
+    SERVER_URL = conf['testlink']['serverURL']
     devKey = conf['testlink']['devkey']
     rResult = {}
 

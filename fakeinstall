@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 PARAM=$1
 WD=$(pwd)

@@ -24,7 +24,7 @@ from log_collector import logcollector
 class para(): 
 	def __init__(self, conf, testCaseName, outputdir, testdir, testlist):	
 		# loading config file
-                f = open('/home/adminuser/fntc/testlink_client.conf')
+                f = open('/etc/fnts.conf')
                 conf = yaml.load(f)
                 f.close
 		
