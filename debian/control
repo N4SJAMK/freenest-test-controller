@@ -8,6 +8,6 @@ Homepage: http://www.freenest.org
 
 Package: fnts
 Architecture: all
-Depends: python (>= 2.7), python-yaml, python-twisted
+Depends: python (>= 2.7), python-yaml, python-twisted, fnts-tools
 Description: This is FreeNest test service package to run tests from FreeNest/Testlink.
 
