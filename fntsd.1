@@ -4,30 +4,10 @@
 fntsd \- Start FreeNest Test Service 
 .SH SYNOPSIS
 .B fntsd
-.RI [ start ]
-.RI [ stop ]
-.RI [ restart ]
-.br
-.B fntsd
 .SH DESCRIPTION
-This command starts the FreeNest Test Service daemon. Use parameters \fBstart\fP, \fBstop\fP and \fBrestart\fP to command the daemon. If you run the command whithout parameters, the fnts service is run as a normal foreground process.
-.SH OPTIONS
-These programs follow the usual GNU command line syntax, with long
-options starting with two dashes (`-').
-A summary of options is included below.
-For a complete description, see the Info files.
-.TP
-.B start
-Start the fnts daemon
-.TP
-.B stop
-Stop the fnts daemon
+This command starts the FreeNest Test Service daemon. If you run this command, the fnts service is run as a normal foreground process. You can start the service as a daemon by using \fBsudo service fnts start\fP command
 .SH SEE ALSO
 .BR fnts (1).
-.br
-The programs are documented fully by
-.IR "The Rise and Fall of a Fooish Bar" ,
-available via the Info system.
 .SH AUTHOR
 tmp was written by Scrooge.
 .PP
