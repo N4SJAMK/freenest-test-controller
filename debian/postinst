@@ -6,6 +6,9 @@ case "$1" in
     echo "Please edit /etc/fnts.conf"
     ;;
 
+    upgrade)
+    ;;
+
     abort-upgrade|abort-remove|abort-deconfigure)
     rm -f /usr/lib/python2.7/dist-packages/fnts
     ;;
