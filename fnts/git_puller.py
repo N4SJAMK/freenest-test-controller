@@ -1,6 +1,6 @@
 """
 
-   Copyright (C) 2000-2012, JAMK University of Applied Sciences 
+   Copyright (C) 2000-2012, JAMK University of Applied Sciences
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,24 +23,22 @@ import subprocess
 from twisted.python import log
 
 class gitpuller:
-	def pull(self, testdir, tag):
-		try:
-			if tag == "null":
-				log.msg('pulling tests')
-				gitpull = subprocess.Popen(["sh", "git_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			else:
-				log.msg('pulling tests with tag:', tag)
-				gitpull = subprocess.Popen(["sh", "git_wrapper.sh", tag],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			log.msg('GIT output list:', str(gitpull))
-			# check and raise an exception if errors occur
-			if str(gitpull[0]).find == ' ':
-				raise Exception(str(gitpull[1]))
-			else:
-				return "ok"
-		except Exception as e:
-			# if something weird happens, a message will be returned and old tests are run
-			log.msg('GIT process exception: %s', str(e))
-			return str(e)
-                
-                
-
+    def pull(self, testdir, tag):
+        try:
+            fntsDir = os.path.dirname(os.path.realpath(__file__))
+            if tag == "null":
+                log.msg('pulling tests')
+                gitpull = subprocess.Popen(["sh", "git_wrapper.sh", testdir],cwd=fntsDir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+            else:
+                log.msg('pulling tests with tag:', tag)
+                gitpull = subprocess.Popen(["sh", "git_wrapper.sh", tag],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+            log.msg('GIT output list:', str(gitpull))
+            # check and raise an exception if errors occur
+            if str(gitpull[0]).find == ' ':
+                raise Exception(str(gitpull[1]))
+            else:
+                return "ok"
+        except Exception as e:
+            # if something weird happens, a message will be returned and old tests are run
+            log.msg('GIT process exception: %s', str(e))
+            return str(e)

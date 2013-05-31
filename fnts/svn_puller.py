@@ -1,6 +1,6 @@
 """
 
-   Copyright (C) 2000-2012, JAMK University of Applied Sciences 
+   Copyright (C) 2000-2012, JAMK University of Applied Sciences
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,20 +23,17 @@ import subprocess
 from twisted.python import log
 
 class svnpuller:
-	def pull(self, testdir):
-		try:
-			log.msg('pulling tests')
-			svnpull = subprocess.Popen(["sh", "svn_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			log.msg('SVN output:', str(svnpull))
-			# check and raise an exception if errors occur
-			if str(svnpull[0]).find == ' ':
-				raise Exception(str(svnpull[1]))
-			else:
-				return "ok"
-		except Exception as e:
-			# if something weird happens, a message will be returned and old tests are run
-			log.msg('SVN process exception: %s', str(e))
-			return str(e)
-                
-                
-
+    def pull(self, testdir):
+        try:
+            log.msg('pulling tests')
+            svnpull = subprocess.Popen(["sh", "svn_wrapper.sh"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+            log.msg('SVN output:', str(svnpull))
+            # check and raise an exception if errors occur
+            if str(svnpull[0]).find == ' ':
+                raise Exception(str(svnpull[1]))
+            else:
+                return "ok"
+        except Exception as e:
+            # if something weird happens, a message will be returned and old tests are run
+            log.msg('SVN process exception: %s', str(e))
+            return str(e)
