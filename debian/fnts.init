@@ -5,12 +5,12 @@
 #
 ### BEGIN INIT INFO
 # Provides: fntcd
-# Required-Start: $local_fs $named
+# Required-Start: $local_fs $named $remote_fs
 # Should-Start: 
-# Required-Stop:  $local_fs
+# Required-Stop:  $local_fs $remote_fs
 # Should-Stop:
-# Default-Start:  3 5
-# Default-Stop:   0 1 2 6
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
 # Short-Description: FreeNest Test Service daemon process
 # Description:    Runs up the FreeNest test service daemon process
 ### END INIT INFO
@@ -29,7 +29,7 @@ case "$1" in
     # Stop the daemon
     kill `cat /var/run/fntsd.pid`
     ;;
-  restart)
+  restart|force-reload)
     echo "Restarting fnts daemon"
     kill `cat /var/run/fntsd.pid`
     twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
