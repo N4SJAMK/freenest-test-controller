@@ -18,10 +18,10 @@
 
 import socket
 import base64
-import TestLinkAPI
 import sys, os, time
 import subprocess
 
+from twisted.python import log
 import yaml
 
 from datetime import datetime
@@ -29,33 +29,38 @@ from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
 from parabot import para
+from log_collector import logcollector
+import testlink.testlinkapi
 
 
 class gridEngine(Engine):
 
-	def __init__(self, tcID, vOutputdir, testdir, vScheduled):
-        	self.logger = logging.getLogger('engine_starter.Engine.GridEngine')        
-
-		# loading grid specific configs
-		f = open('testlink_client.conf')
-        	conf = yaml.load(f)
-        	f.close
+	def __init__(self, conf, tcID, vOutputdir, testdir, vScheduled):
+        	# loading grid specific configs
+		#f = open('/home/adminuser/fntc/testlink_client.conf')
+        	#conf = yaml.load(f)
+        	#f.close
 
         	self.robot_version = conf['robot']['version']
-		self.devKey = conf['general']['devkey']
-		self.SERVER_URL = conf['general']['serverURL'] + "lib/api/xmlrpc.php"
+		self.devKey = conf['testlink']['devkey']
+		self.SERVER_URL = conf['testlink']['serverURL'] + "lib/api/xmlrpc.php"
 
         	self.vOutputdir = vOutputdir
         	self.testdir = testdir
 
+		self.conf = conf
+		self.hosts = []
+
 		self.scheduled = vScheduled
 		self.notes = ""
-		self.result = ""
+		self.result = -2
 		self.timestamp = ""
 
 		self.tcID = tcID
 
-		self.logger.debug('Engine succesfully loaded')
+		self.logger = logcollector()
+
+		log.msg('Engine succesfully loaded')
 
 
     	def run_tests(self, testCaseName, testList, runTimes):
@@ -66,22 +71,55 @@ class gridEngine(Engine):
 		# building the command that is sent to RF
                 # name is used so RF doesn't create a huge, nasty looking name for the test suite
 		gridresult = ""
+		listedtests = []
 		foundtests = []
 
                 tests = ""
 
-		for t in testList: 			# checking that tests exist, so the script doesn't fail because of missing test
+		log.msg(testList[0])
+                if str(testList[0]).startswith("list_"):	#the custom field contains a test list file
+			log.msg('Loading tests from external file')
+			if os.path.exists(self.testdir + testList[0]):
+				f = open(self.testdir + testList[0], 'r')
+				for line in f:
+					listedtests.append(line.rstrip('\n'))
+				testList = listedtests
+				f.close()
+
+
+		for t in testList: 			# checking that tests exist, so the script doesn't fail because of a missing test
                         if os.path.exists(self.testdir + t):
-				foundtests.append(t)
+				if os.path.isdir(self.testdir + t):
+					#the given path is a directory. Should all directories be given separately or would giving the root run all tests?
+					#for dirname, dirnames, filenames in os.walk(self.testdir + t):
+					#	log.msg(dirnames)
+					#	#dirnames = [] #wiping dirnames so only the tests in current directory are run
+					#	# editing the 'dirnames' list will stop os.walk() from recursing into there.
+					#	if '.git' in dirnames:
+					#		# don't go into any .git directories.
+					#		dirnames.remove('.git')
+					#log.msg(os.listdir(self.testdir + t))
+					for filename in os.listdir(self.testdir + t):
+
+					# print path to all filenames.
+					#for filename in filenames:
+					#should match to supported filetypes
+						ext = ".txt", ".html", ".htm", ".xhtml", ".tsv", ".robot", ".rst", ".rest"
+						if filename.endswith(ext):
+							foundtests.append(t + filename)
+						else:
+							pass
+				else:
+					foundtests.append(t)
 			else:
-				self.logger.debug('Test %s not found, skipping...', t)
+				log.msg('Test not found, skipping', t)
 
 
 		if foundtests != []:
 			for ft in foundtests:                      # adding found tests to the command
 				tests = tests + " " + self.testdir + ft
 		else:	# and if no tests were found...
-			self.logger.critical('No runnable tests found!')
+			log.msg('No runnable tests found!')
 			gridresult = "No runnable tests found!"
 
 	
@@ -97,15 +135,16 @@ class gridEngine(Engine):
                 			if not os.path.exists(outputdir):
                         			os.makedirs(outputdir)
 
-                			self.logger.debug('Sending tests for parabot: "%s"', tests)
+                			log.msg('Sending tests for parabot:', tests)
 
                 			#robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-					parabot = para(testCaseName, outputdir, self.testdir, testlist)
+					parabot = para(self.conf, testCaseName, outputdir, self.testdir, testlist)
 					grid = parabot.run()
+					self.hosts = grid
 
 					# check and raise an exception if Robot fails to start
-                		        if grid != "ok":
-                		               raise Exception(grid)
+                		        if grid[0] != "ok":
+                		               raise Exception(grid[0])
                 		        else:
                 		               gridresult = "ok"
 						
@@ -123,7 +162,7 @@ class gridEngine(Engine):
 	def get_test_results(self, testCaseName, runTimes, tolerance):
 		# Trying to get the results from output.xml, which is located in outputdir
 		
-		if self.result == "":
+		if self.result == -2:
 			passes = [0, 0, 0]	# first number is critical tests, second one is total tests, the rest are individual tests
 			fails = [0, 0, 0]	# more will be added while going through the results
 			resultnotes = []	# for test notes, passed tests say PASSED, failed ones give an error message
@@ -136,15 +175,27 @@ class gridEngine(Engine):
 
 				outputdir = self.vOutputdir + testCaseName + "/" + str(i) + "/"
                 		try:
-					outputfile = outputdir + "output.xml"
+					outputfile = outputdir + "para_output.xml"
                         		tree = ET.parse(outputfile)
+					
+					o = 5
+					xmlpath = "suite/test"
+					foundtests = []
+					while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+						tests = tree.findall(xmlpath)
+						for test in tests:
+							foundtests.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
-                        		tests = tree.findall("suite/suite/test")
-					if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
-						tests = tree.findall("suite/test")
+                        		#tests = tree.findall("suite/suite/test")
+					#if tests == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	tests = tree.findall("suite/test")
+					#	if tests == []: # when there are more test suites
+					#		tests = tree.findall("suite/suite/suite/test")
 
-                        		for test in tests:
-                                		resultnotes.append([])
+					for test in foundtests:
+						resultnotes.append([])
 						if names_collected == False:
 							testattr = test.attrib
 							names.append(testattr['name'])
@@ -166,13 +217,26 @@ class gridEngine(Engine):
 					
 					
 					# looping through all tests
-                        		testresults = tree.findall("suite/suite/test/status")
+					# TODO: make it flexible!
+                        		#testresults = tree.findall("suite/suite/test/status")
 					j = 0
 
-					if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
-						testresults = tree.findall("suite/test/status")
+					o = 5
+                                        xmlpath = "suite/test/status"
+                                        foundtestresults = []
+                                        while o >= 0:  #instead of looking each path separately, we'll check the first five suites for test results
+						testresults = tree.findall(xmlpath)
+						for test in testresults:
+							foundtestresults.append(test)
+						xmlpath = "suite/" + xmlpath
+						o = o - 1
 
-					for testresult in testresults:
+					#if testresults == []:	# this happens in the case of single tests, so the path needs to be fixed
+					#	testresults = tree.findall("suite/test/status")
+					#	if testresults == []: # when there are more test suites 
+					#		testresults = tree.findall("suite/suite/suite/test/status")
+
+					for testresult in foundtestresults:
                         			testattrlist = testresult.attrib
 
                         			# counting the results extracted from the XML
@@ -198,23 +262,23 @@ class gridEngine(Engine):
                         		t = datetime.now()
                                         self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
 					
-					self.logger.debug('Got results from output.xml')
+					log.msg('Got results from xml-files')
 
             			except Exception, e:
                         		# if something goes wrong, the message and blocked result are returned to Testlink
-                        		self.result = "b"
+                        		self.result = -1
                         		self.notes = "\nXML ERROR: " + str(e)
                         		t = datetime.now()
                         		self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-                        		self.logger.critical('xml error: %s', str(e))
+                        		log.msg('xml error:', str(e))
 				
 				i = i + 1		
 
 
-		if self.result == "":
+		if self.result == -2:
 			# combining all the notes to be returned
 			if fails[0] != 0:
-				self.result = "f"
+				self.result = 0
 				reason = "Not all critical tests were passed"
 			else:
 				if (passes[1] + fails[1]) != (passes[0] + fails[0]):
@@ -222,21 +286,27 @@ class gridEngine(Engine):
 					tests_passes = (passes[1] - passes[0]) * 100
 						
 					if (tests_passes / tests_total) >= int(tolerance):
-						self.result = "p"
+						self.result = 1
 					else:
-						self.result = "f"
+						self.result = 0
 						reason = "Not enough tests were passed, only " + str(tests_passes / tests_total) + "% of non critical tests passed"
 				else:
-					self.result = "p"
+					self.result = 1
 			
 			self.notes = "Tests were run " + str(runTimes) + " times\n\n"
 			self.notes = self.notes + "Total tests passed: " + str(passes[1]) + ", failed: " + str(fails[1]) + "\n"
 			self.notes = self.notes + "Critical tests passed: " + str(passes[0]) + ", failed: " + str(fails[0]) + "\n"
 			self.notes = self.notes + "Non critical tests passed: " + str(passes[1] - passes[0]) + ", failed: " + str(fails[1] - fails[0]) + "\n"
-			if self.result == "p":
+			if self.result == 1:
 				self.notes = self.notes + "Test set PASSED\n\n"
 			else: 
 				self.notes = self.notes + "Test set FAILED: " + reason + "\n\n"
+				
+				if self.conf['log_collecting']['log_collecting_enabled'] == True:
+					# tests failed, so we need to fetch the logs to see what went wrong
+					self.hosts.pop(0)
+					self.logger.collect_logs(self.vOutputdir, testCaseName, self.hosts)
+					log.msg('Logs were fetched to', (self.vOutputdir + testCaseName))
 
 			# results for each test separately
 			j = 0
@@ -256,7 +326,7 @@ class gridEngine(Engine):
 			# Here the original Robot Framework reports are made visible. A link is generated for each report, so the user only
 			# needs to go to the address to see an accurate report about what has happened. 
 			noproblems = 1
-			try:
+			"""try:
 				#getting the ip from Google
 				s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 				s.connect(("8.8.8.8",80))
@@ -264,7 +334,7 @@ class gridEngine(Engine):
 				s.close()
 
 			except Exception, e:	# if the socket fails for some reason...
-				self.logger.critical("SOCKET ERROR: %s", str(e))
+				log.msg("SOCKET ERROR: %s", str(e))
 				noproblems = 0
 				self.notes = self.notes + "Failed to create links for accurate reports. \nCheck the log for details.\n"
  
@@ -274,26 +344,29 @@ class gridEngine(Engine):
 				i = 1
 				while i <= runTimes:
 					self.notes = self.notes + str(i) + ". http://" + ip + self.vOutputdir.split('www')[1] + testCaseName + "/" + str(i) + "/report.html\n"
-					i = i + 1		
+					i = i + 1
+			"""		
 
 		# creating the list of results
 		results = []
-        results.append(self.result)
+        	results.append(self.result)
 		results.append(self.notes)
-		results.append(self.scheduled)
+		#results.append(self.scheduled)
 		results.append(self.timestamp)
+
+		#log.msg('grid returns:', results)
 
 		# pack and upload results
 		#self.upload_results(testCaseName, runTimes)
 		
-        return results
+        	return results
 
 
 	def get_testcases(self):
         	puller = gitpuller()
         	gitresult = puller.pull(str(self.testdir))
         	if gitresult != "ok":
-            		logger.critical('git error: %s', gitresult)
+            		log.msg('git error:', gitresult)
 			self.notes = gitresult
             		return False
 		else:
@@ -302,7 +375,7 @@ class gridEngine(Engine):
 
 	def upload_results(self, testCaseName, runTimes):
 		# This method is used for packing the reports into one zip-package and uploading that to Testlink
-		self.logger.debug("Packaging results...")
+		log.msg("Packaging results...")
 		no_problems = 1
 
 		try:
@@ -322,9 +395,9 @@ class gridEngine(Engine):
 			
 			# creating the zip-package
 			package = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-			self.logger.debug("Files packed, output: %s", str(package))
+			log.msg("Files packed, output:", str(package))
 		except Exception, e:
-			self.logger.critical("PACKAGING ERROR: %s", str(e))
+			log.msg("PACKAGING ERROR:", str(e))
 			no_problems = 0
 
 		
@@ -335,19 +408,19 @@ class gridEngine(Engine):
 				with open(outputdir + filename + ".zip", 'rb') as fin, open(outputdir + filename + "_b64.zip", 'w') as fout:
 					base64.encode(fin, fout)
 			except Exception, e:
-				self.logger.critical("ENCODING ERROR: %s", str(e))
+				log.msg("ENCODING ERROR:", str(e))
 				no_problems = 0
 
 
 			if no_problems == 1:
 				try:
 					# uploading the package
-					client = TestLinkAPI.TestlinkAPIClient(self.SERVER_URL, self.devKey)
+					client = testlink.testlinkapi.TestlinkAPIClient(self.SERVER_URL, self.devKey)
 					up = client.uploadTestCaseAttachment(self.tcID, "results", "Reports from Robot Framework", filename + "_b64.zip", "zip", outputdir + filename + "_b64.zip")
-					self.logger.debug(str(up))
+					log.msg(str(up))
 
 				except Exception, e:
-					self.logger.critical("UPLOADING ERROR: %s", str(e))	
+					log.msg("UPLOADING ERROR:", str(e))	
 	
 
 

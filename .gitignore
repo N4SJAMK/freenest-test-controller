@@ -1,0 +1,8 @@
+debian/files
+debian/tmp
+debian/substvars
+debian/*.log
+debian/fnts
+*.debhelper
+*.pyc
+*.substvars

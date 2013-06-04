@@ -18,7 +18,7 @@
 
 import socket
 import base64
-import TestLinkAPI
+import testlink.testlinkapi
 import sys, os, time
 import subprocess
 import yaml
@@ -406,7 +406,7 @@ class robotEngine(Engine):
 			if no_problems == 1:
 				try:
 					# uploading the package
-					client = TestLinkAPI.TestlinkAPIClient(self.SERVER_URL, self.devKey)
+					client = testlink.testlinkapi.TestlinkAPIClient(self.SERVER_URL, self.devKey)
 					up = client.uploadTestCaseAttachment(self.tcID, "results", "Reports from Robot Framework", filename + "_b64.zip", "zip", outputdir + filename + "_b64.zip")
 					log.msg(str(up))
 

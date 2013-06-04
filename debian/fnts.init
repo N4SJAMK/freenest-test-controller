@@ -1,0 +1,44 @@
+#! /bin/bash
+#
+#
+# /etc/init.d/fntsd
+#
+### BEGIN INIT INFO
+# Provides: fntcd
+# Required-Start: $local_fs $named $remote_fs
+# Should-Start: 
+# Required-Stop:  $local_fs $remote_fs
+# Should-Stop:
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description: FreeNest Test Service daemon process
+# Description:    Runs up the FreeNest test service daemon process
+### END INIT INFO
+
+# Activate the python virtual environment ?
+#    . /path_to_virtualenv/activate
+
+case "$1" in
+  start)
+    echo "Starting fnts daemon"
+    # Start the daemon
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
+    ;;
+  stop)
+    echo "Stopping fnts daemon"
+    # Stop the daemon
+    kill `cat /var/run/fntsd.pid`
+    ;;
+  restart|force-reload)
+    echo "Restarting fnts daemon"
+    kill `cat /var/run/fntsd.pid`
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
+    ;;
+  *)
+    echo "Usage: /etc/init.d/fntsd.sh {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0
+

@@ -2,11 +2,15 @@
 set -e
 case "$1" in
     configure)
-    ln -s /usr/share/pyshared/fntc /usr/lib/python2.6/dist-packages/
+    ln -sf /usr/share/pyshared/fnts /usr/lib/python2.7/dist-packages/
+    echo "Please edit /etc/fnts.conf"
+    ;;
+
+    upgrade)
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
-    rm -f /usr/lib/python2.6/dist-packages/fntc
+    rm -f /usr/lib/python2.7/dist-packages/fnts
     ;;
 
     *)
@@ -15,3 +19,5 @@ case "$1" in
     ;;
 esac
 exit 0
+
+#DEBHELPER#
