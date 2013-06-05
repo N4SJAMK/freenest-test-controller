@@ -17,44 +17,34 @@
 
 """
 
-from twisted.web import xmlrpc, server
-from twisted.application.internet import TCPServer
-from twisted.application.service import Application
-from twisted.internet import reactor
-from twisted.python import log
-from twisted.internet import threads
-
-
-#from fnts.testlink import testlinkapi
-import sys, os, time 
-from twisted.python import log  
-import yaml 
+import sys, os, time
 from datetime import datetime
 from xml.etree import ElementTree as ET
+
+import yaml
+from twisted.web import xmlrpc, server
+from twisted.application import internet, service
+from twisted.internet import reactor, threads
+from twisted.python import log
+
 from fnts import fnts
-#from fnts.git_puller import gitpuller
-#from fnts.svn_puller import svnpuller
-#from fnts.fnts import fnts
-#from fnts.TestLinkPoller import TestLinkPoller
+
 
 class fntsDaemon(xmlrpc.XMLRPC):
-    """
-    An example object to be published.
-    """
 
     rResult = {}
 
-    def executeTestCase(self, data):        
+    def executeTestCase(self, data):
         log.msg('Got a request')
         log.msg(data)
 
         #talk with main program, send data and expect result
         f = fnts.fnts()
 
-	# calling the FNTC core
+	    # calling the FNTS core
         (result, notes, timestamp) = f.run(data)
 
-	# processing results to be sent back to TestLink / whoever called
+	    # processing results to be sent back to TestLink / whoever called
         if(result == 1):
             self.rResult['result'] = 'p'
         elif(result == 0):
@@ -74,35 +64,25 @@ class fntsDaemon(xmlrpc.XMLRPC):
 
     def onError(self, result):
         log.msg(result)
-	log.msg('Something went wrong on threading execution.')
+        log.msg('Something went wrong on threading execution.')
 
     def onExecutionDone(self, result):
-	log.msg('returning deferred results')
-	return result
+        log.msg('returning deferred results')
+        return result
 
     def xmlrpc_executeTestCase(self, data):
         deferred = threads.deferToThread(self.executeTestCase, data)
-	deferred.addCallback(self.onExecutionDone)
-	deferred.addErrback(self.onError)
-        #value = self.executeTestCase(data)
-        #log.msg(value)
-        #return  {'result':'p', 'notes':'Message', 'scheduled':'now', 'timestampISO':'2012-09-26 11:33:08'}
-	return deferred
+        deferred.addCallback(self.onExecutionDone)
+        deferred.addErrback(self.onError)
+        return deferred
 
-
-if __name__ == '__main__':
-    from twisted.internet import selectreactor
-    #selectreactor.install ()
-
-    from twisted.internet import reactor
-    import sys
+if __name__ == '__main__':      
     log.startLogging(sys.stdout)
     r = fntsDaemon()
     reactor.listenTCP(8000, server.Site(r))
     reactor.run()    
 
-else: # run the worker as a twistd service application: twistd -y xmlrpc_server.py --no_save
-    from twisted.application import service, internet        
+else: # run the worker as a twistd service application: twistd -y xmlrpc_server.py --no_save        
     application = service.Application('fnts')
     r = fntsDaemon()
     website = internet.TCPServer(8000, server.Site(r))
