@@ -27,6 +27,9 @@ from datetime import datetime
 from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
+from fnts.git_puller import gitpuller
+from fnts.svn_puller import svnpuller
+from fnts.TestLinkPoller import TestLinkPoller
 
 class fnts:
 
@@ -60,6 +63,14 @@ class fnts:
         file = open('/etc/fnts.conf')
         self.conf = yaml.load(file)
         file.close
+
+    def getCustomFields(self):
+        api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
+        if self.conf['general']['test_management'] == 'Testlink':
+            self.customFields = api.getCusomFields(data, self.conf)
+        else:
+            self.customFields = api.getDefaultCustomFields()
+
 
     def loadEngine():
 
