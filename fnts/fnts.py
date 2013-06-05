@@ -38,6 +38,7 @@ class fnts:
         self.customFields = {}
         self.conf = {}
         self.data = None
+        self.api = None
 
     def run(self, data):
         
@@ -70,11 +71,11 @@ class fnts:
 
     def getCustomFields(self):
         print("GETCUSTOM FIELSD")
-        api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
+        self.api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
         if self.conf['general']['test_management'] == 'Testlink':
-            self.customFields = api.getCustomFields(self.data, self.conf)
+            self.customFields = self.api.getCustomFields(self.data, self.conf)
         else:
-            self.customFields = api.getDefaultCustomFields()
+            self.customFields = self.api.getDefaultCustomFields()
 
 
     def loadEngine(self):
@@ -155,7 +156,7 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = self.engine.get_test_results(self.customFields['testname'], self.customFields['runtimes'], self.customFields['tolerance'])
+            results = self.engine.get_test_results(self.data['testCaseName'], int(self.customFields['runtimes']), int(self.customFields['tolerance']))
 
 
         engine_state = self.engine.teardown_environment()
@@ -164,7 +165,8 @@ class fnts:
             log.msg('Something went wrong while running engine')
             raise Exception('Engine error: ' + engineresult)
         else:
-            self.costomFields = api.getDefaultCustomFields()
+            return results
+            #self.customFields = self.api.getDefaultCustomFields()
 
 
     def updateVersion(self):
