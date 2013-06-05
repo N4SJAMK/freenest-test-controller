@@ -41,91 +41,17 @@ class fntsDaemon(xmlrpc.XMLRPC):
     An example object to be published.
     """
 
-    f = open('/etc/fnts.conf')
-    conf = yaml.load(f)
-    f.close
-
-    vOutputdir = conf['general']['outputdirectory']
-    vTestdir = conf['general']['testingdirectory']
-    versioncontrol = conf['general']['versioncontrol']
-    
-    SERVER_URL = conf['testlink']['serverURL']
-    devKey = conf['testlink']['devkey']
     rResult = {}
 
     def executeTestCase(self, data):        
         log.msg('Got a request')
         log.msg(data)
 
-	# getting custom fields from Testlink
-	if self.conf['general']['test_management'] == 'Testlink':
-        	log.msg('start testlink API')
-		api = TestLinkPoller(self.SERVER_URL, self.devKey)
-		fields = api.getCustomFields(data, log, self.conf)
-		
-		cfEngine = fields[0]
-		cfScripts = fields[1]
-		runtimes = fields[2]
-		tolerance = fields[3]
-		tag = fields[4]
-
-	else:
-		# no place to look for variables, using the default ones from config
-		cfEngine = self.conf['variables']['default_engine']
-		cfScripts = data['testCaseName'] + ".txt"
-		runtimes = int(self.conf['variables']['default_runtimes'])
-		tolerance = int(self.conf['variables']['default_tolerance'])
-		tag = "null"
-
-
-        # checking the version control software and choosing the correct driver
-	#TODO: this part could be more flexible
-	#GIT
-	if self.versioncontrol == "GIT":
-		puller = gitpuller()
-		gitresult = puller.pull(self.vTestdir, tag)
-		if gitresult != "ok":
-			log.msg('Git error, running old tests. ERROR:', gitresult)
-		testdir = self.vTestdir
-	#SVN
-	elif self.versioncontrol == "SVN":
-		puller = svnpuller()
-		svnresult = puller.pull(self.vTestdir)
-		if svnresult != "ok":
-			log.msg('SVN error, running old tests. ERROR:', svnresult)
-		#setting the testdir to point to the tests instead of the repository
-		#if a tag is given and not found, the trunk is used as a test resource
-		if tag == "null":
-			testdir = self.vTestdir + "trunk/tests/"
-		else:
-			if os.path.exists(self.vTestdir + tag + "/tests/") != true:
-				log.msg("Tagged tests were not found from the repository, running tests from trunk")
-				testdir = self.vTestdir + "/trunk/tests/"
-			else:
-				testdir = self.vTestdir + tag + "/tests/"
-	#something else, not officially supported
-        else:
-            msg = "Version control driver for " + self.versioncontrol + " was not found, tests cannot be updated"
-            log.msg(msg)
-
-
         ''' talk with main program, send data and expect result '''
-        log.msg('Running following scripts:', cfScripts)
         f = fnts()
-        try:
-            runtimes = int(runtimes)
-        except Exception, e:
-            # runtimes is not a number
-            log.msg('"RunTimes" contains an invalid value, using default value')
-            runtimes = int(self.conf['variables']['default_runtimes'])
-        try:
-            tolerance = int(tolerance)
-        except Exception, e:
-            log.msg('"Tolerance" contains an invalid value, using default value')
-            tolerance = int(self.conf['variables']['default_tolerance'])
 
 	# calling the FNTC core
-        (result, notes, timestamp) = f.fnts_main(self.conf, cfEngine, cfScripts, runtimes, tolerance, self.vOutputdir, testdir, 'now', data['testCaseName'])
+        (result, notes, timestamp) = f.run()
 
 	# processing results to be sent back to TestLink / whoever called
         if(result == 1):

@@ -17,20 +17,26 @@ import xmlrpclib
 class TestLinkPoller:
     def __init__(self, server_url, devKey):
         self.client = TestlinkAPIClient(server_url, devKey)
+        self.conf = {}
+        self.data = None
 
+    def getDefaultCustomFields(self):
+        customFields['engine'] = "robotEngine"
+        customFields['scripts'] = self.data["testCaseName"] + ".txt"
+        customFields['runtimes'] = conf['variables']['default_runtimes'] 
+        customFields['tolerance'] = conf['variables']['default_tolerance']
+        customFields['tag'] = "null"
 
     def getCustomFields(self, data, log, conf):
         try:
-            fields = []
+            self.conf = conf
+            self.data = data
+
+            customFields = {}
 
             # polling some needed data from TL database using TestLink API
             projectinfo=(self.client.getProjects())
             log.msg('Got Testlink projects info:', projectinfo)
-            '''
-            {'testPlanID': '1420', 'executionMode': 'now', 'platformID': 0, 'testCaseID': '1959',
-              'buildID': 5, 'testCaseVersionID': 1960, 'testCaseName': 'LoginAdminUser', 'testProjectID': '15'}
-            '''
-
 
             #log.msg(len(projectinfo)) #just for debugging
             prefix = ""
@@ -38,10 +44,6 @@ class TestLinkPoller:
                 if str(project['id']) == str(data['testProjectID']):
                     prefix = project['prefix']
                     break
-                #else:
-                #    log.msg(str(project)) #just for debugging
-                #    log.msg(str(project['id']))
-                #    log.msg(str(data['testProjectID']))
             if prefix == "":
                 raise Exception("Correct project prefix was not found!")
 
@@ -88,24 +90,21 @@ class TestLinkPoller:
             else:
                 log.msg('Got version tag from custom field:', tag)
 
-            fields.append(cfEngine)
-            fields.append(cfScripts)
-            fields.append(runtimes) 
-            fields.append(tolerance)
-            fields.append(tag)
+            customFields['engine'] = cfEngine
+            customFields['scripts'] = cfScripts
+            customFields['runtimes'] = runtimes 
+            customFields['tolerance'] = tolerance
+            customFields['tag'] = tag
+
+            return fields
 
         except Exception, e:
             #TestlinkAPI might be broken
             log.msg('Getting data with TestlinkAPI failed:', str(e))
             log.msg('Using default values')
 
-            fields.append("robotEngine")
-            fields.append(data['testCaseName'] + ".txt")
-            fields.append(conf['variables']['default_runtimes'])
-            fields.append(conf['variables']['default_tolerance'])
-            fields.append("null")
+            return self.getDefaultCustomFields()
 
-        return fields
 
 
 #Testlink API, can be used by any python script
