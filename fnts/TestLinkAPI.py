@@ -9,6 +9,7 @@ Initially based on the James Stock testlink-api-python-client R7.
 
 """
 import xmlrpclib
+from twisted.python import log
 
 
 #FNTC specific class for using the TestLink API
@@ -27,7 +28,7 @@ class TestLinkPoller:
         customFields['tolerance'] = conf['variables']['default_tolerance']
         customFields['tag'] = "null"
 
-    def getCustomFields(self, data, log, conf):
+    def getCustomFields(self, data, conf):
         try:
             self.conf = conf
             self.data = data
@@ -96,7 +97,7 @@ class TestLinkPoller:
             customFields['tolerance'] = tolerance
             customFields['tag'] = tag
 
-            return fields
+            return customFields
 
         except Exception, e:
             #TestlinkAPI might be broken

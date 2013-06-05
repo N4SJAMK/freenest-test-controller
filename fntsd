@@ -31,10 +31,11 @@ from twisted.python import log
 import yaml 
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from fnts.git_puller import gitpuller
-from fnts.svn_puller import svnpuller
-from fnts.fnts import fnts
-from fnts.TestLinkPoller import TestLinkPoller
+from fnts import fnts
+#from fnts.git_puller import gitpuller
+#from fnts.svn_puller import svnpuller
+#from fnts.fnts import fnts
+#from fnts.TestLinkPoller import TestLinkPoller
 
 class fntsDaemon(xmlrpc.XMLRPC):
     """
@@ -47,11 +48,11 @@ class fntsDaemon(xmlrpc.XMLRPC):
         log.msg('Got a request')
         log.msg(data)
 
-        ''' talk with main program, send data and expect result '''
-        f = fnts()
+        #talk with main program, send data and expect result
+        f = fnts.fnts()
 
 	# calling the FNTC core
-        (result, notes, timestamp) = f.run()
+        (result, notes, timestamp) = f.run(data)
 
 	# processing results to be sent back to TestLink / whoever called
         if(result == 1):

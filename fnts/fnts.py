@@ -27,9 +27,9 @@ from datetime import datetime
 from xml.etree import ElementTree as ET
 from git_puller import gitpuller
 from engine import Engine
-from fnts.git_puller import gitpuller
-from fnts.svn_puller import svnpuller
-from fnts.TestLinkPoller import TestLinkPoller
+from git_puller import gitpuller
+from svn_puller import svnpuller
+from TestLinkAPI import TestLinkPoller
 
 class fnts:
 
@@ -37,12 +37,15 @@ class fnts:
         self.engine = None
         self.customFields = {}
         self.conf = {}
+        self.data = None
 
     def run(self, data):
+        
+        self.data = data
 
         try:
             #Load configurations from configuratiosn file
-            self.loadConfigurations
+            self.loadConfigurations()
 
             #Get custom fields from TestLinkAPI
             self.getCustomFields()
@@ -57,22 +60,24 @@ class fnts:
             return self.runTests()
 
         except Exception, e:
-            return (-1, e, timestamp)
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return (-1, str(e), timestamp)
 
     def loadConfigurations(self):
         file = open('/etc/fnts.conf')
         self.conf = yaml.load(file)
-        file.close
+        file.close()
 
     def getCustomFields(self):
+        print("GETCUSTOM FIELSD")
         api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
         if self.conf['general']['test_management'] == 'Testlink':
-            self.customFields = api.getCusomFields(data, self.conf)
+            self.customFields = api.getCustomFields(self.data, self.conf)
         else:
             self.customFields = api.getDefaultCustomFields()
 
 
-    def loadEngine():
+    def loadEngine(self):
 
         cls = Engine
         engines = []
@@ -115,8 +120,8 @@ class fnts:
         log.msg('engines found', engines)
 
         for e in engines:       #scroll through all found engines and find the correct one
-            if e.__name__ == cfengine:
-                self.engine = e(self.conf, cfengine, cfoutputdir, cftestdir, cfscheduled)
+            if e.__name__ == self.customFields['engine']:
+                self.engine = e(self.conf, self.customFields['engine'], self.conf['general']['outputdirectory'], self.conf['general']['testingdirectory'], "now")
                 break
         else:
             t = datetime.now()
@@ -139,7 +144,7 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(cftestname, scriptlist, cfruntimes)
+            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, int(self.customFields['runtimes']))
             if engineresult != "ok":
                 t = datetime.now()
                 timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
@@ -150,10 +155,10 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = engine.get_test_results(self.customFields['testname'], self.customFields['runtimes'], self.customFields['tolerance'])
+            results = self.engine.get_test_results(self.customFields['testname'], self.customFields['runtimes'], self.customFields['tolerance'])
 
 
-        engine_state = engine.teardown_environment()
+        engine_state = self.engine.teardown_environment()
 
         if engine_state != 1:
             log.msg('Something went wrong while running engine')
@@ -166,31 +171,31 @@ class fnts:
         # checking the version control software and choosing the correct driver
         #TODO: this part could be more flexible
         #GIT
-        if self.versioncontrol == "GIT":
+        if self.conf['general']['versioncontrol'] == "GIT":
             puller = gitpuller()
-            gitresult = puller.pull(self.vTestdir, tag)
+            gitresult = puller.pull(self.conf['general']['testingdirectory'], self.customFields['tag'])
             if gitresult != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
-            testdir = self.vTestdir
+            testdir = self.conf['general']['testingdirectory']
         #SVN
-        elif self.versioncontrol == "SVN":
+        elif self.conf['general']['versioncontrol'] == "SVN":
             puller = svnpuller()
             svnresult = puller.pull(self.vTestdir)
             if svnresult != "ok":
                 log.msg('SVN error, running old tests. ERROR:', svnresult)
             #setting the testdir to point to the tests instead of the repository
             #if a tag is given and not found, the trunk is used as a test resource
-            if tag == "null":
-                testdir = self.vTestdir + "trunk/tests/"
+            if self.customFields['tag'] == "null":
+                testdir = self.conf['general']['testingdirectory'] + "trunk/tests/"
             else:
-                if os.path.exists(self.vTestdir + tag + "/tests/") != true:
+                if os.path.exists(self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/") != true:
                     log.msg("Tagged tests were not found from the repository, running tests from trunk")
-                    testdir = self.vTestdir + "/trunk/tests/"
+                    testdir = self.conf['general']['testingdirectory'] + "/trunk/tests/"
                 else:
-                    testdir = self.vTestdir + tag + "/tests/"
+                    testdir = self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/"
         #something else, not officially supported
         else:
-            msg = "Version control driver for " + self.versioncontrol + " was not found, tests cannot be updated"
+            msg = "Version control driver for " + self.conf['general']['versioncontrol'] + " was not found, tests cannot be updated"
             log.msg(msg)
 
 
