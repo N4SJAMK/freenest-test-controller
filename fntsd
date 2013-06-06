@@ -162,6 +162,10 @@ class fntsDaemon(xmlrpc.XMLRPC):
         #return  {'result':'p', 'notes':'Message', 'scheduled':'now', 'timestampISO':'2012-09-26 11:33:08'}
 	return deferred
 
+    def xmlrpc_ping(self, data={}):
+        log.msg('ping')
+        return {'ping':'pong'}
+
 
 if __name__ == '__main__':
     from twisted.internet import selectreactor
