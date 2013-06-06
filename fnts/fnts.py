@@ -70,7 +70,6 @@ class fnts:
         file.close()
 
     def getCustomFields(self):
-        print("GETCUSTOM FIELSD")
         self.api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
         if self.conf['general']['test_management'] == 'Testlink':
             self.customFields = self.api.getCustomFields(self.data, self.conf)
