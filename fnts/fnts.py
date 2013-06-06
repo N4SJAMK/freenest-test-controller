@@ -18,18 +18,19 @@
 
 """
 
-
-import testlink.testlinkapi
 import sys, os, time
-from twisted.python import log
-import yaml
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from git_puller import gitpuller
+
+import yaml
+from twisted.python import log
+
+#import testlink.testlinkapi
 from engine import Engine
 from git_puller import gitpuller
 from svn_puller import svnpuller
-from TestLinkAPI import TestLinkPoller
+#from TestLinkAPI import TestLinkPoller
+from TestLinkPoller import TestLinkPoller
 
 class fnts:
 
@@ -70,7 +71,6 @@ class fnts:
         file.close()
 
     def getCustomFields(self):
-        print("GETCUSTOM FIELSD")
         self.api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
         if self.conf['general']['test_management'] == 'Testlink':
             self.customFields = self.api.getCustomFields(self.data, self.conf)
