@@ -140,6 +140,11 @@ class fnts:
 
         engine_state = self.engine.init_environment()
 
+        if not self.customFields['runtimes'].isdigit():
+            raise Exception('Cant cast runtimes ' + self.customFields['runtimes'] + ' to int')
+        if not self.customFields['tolerance'].isdigit():
+            raise Exception('Cant cast tolerance ' + self.customFields['tolerance'] + ' to int')
+
         if engine_state == 1:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
