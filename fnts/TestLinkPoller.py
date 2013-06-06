@@ -59,8 +59,7 @@ class TestLinkPoller:
             else:
                 raise Exception('Failed to find correct test case information')
 
-            
-            #  ???
+
             #tclist=(self.client.getTestCasesForTestPlan(data['buildID']))
             log.msg('Got all test cases for Plan')
 
@@ -85,9 +84,16 @@ class TestLinkPoller:
 
             customFields['engine'] = cfEngine
             customFields['scripts'] = cfScripts
-            customFields['runtimes'] = runtimes 
-            customFields['tolerance'] = tolerance
             customFields['tag'] = tag
+            if runtimes.isdigit():                                      
+                customFields['runtimes'] = int(runtimes)                  
+            else:                    
+                customFields['runtimes'] = conf['variables']['default_runtimes']
+            if tolerance.isdigit():                 
+                customFields['tolerance'] = int(tolerance)
+            else:                                                                                         
+                customFields['tolerance'] = conf['variables']['default_tolerance']
+
 
             return customFields
 
@@ -97,6 +103,7 @@ class TestLinkPoller:
             log.msg('Using default values')
 
             return self.getDefaultCustomFields()
+
 
 
 

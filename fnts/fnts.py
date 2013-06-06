@@ -145,7 +145,7 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, int(self.customFields['runtimes']))
+            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, self.customFields['runtimes'])
             if engineresult != "ok":
                 t = datetime.now()
                 timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
@@ -156,7 +156,7 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = self.engine.get_test_results(self.data['testCaseName'], int(self.customFields['runtimes']), int(self.customFields['tolerance']))
+            results = self.engine.get_test_results(self.data['testCaseName'], self.customFields['runtimes'], self.customFields['tolerance'])
 
 
         engine_state = self.engine.teardown_environment()
