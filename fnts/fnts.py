@@ -25,18 +25,15 @@ from xml.etree import ElementTree as ET
 import yaml
 from twisted.python import log
 
-#import testlink.testlinkapi
 from engine import Engine
 from git_puller import gitpuller
 from svn_puller import svnpuller
-#from TestLinkAPI import TestLinkPoller
 from TestLinkPoller import TestLinkPoller
 
 class fnts:
 
     def __init__(self):
         self.engine = None
-        self.customFields = {}
         self.conf = {}
         self.data = None
         self.api = None
@@ -71,11 +68,12 @@ class fnts:
         file.close()
 
     def getCustomFields(self):
-        self.api = TestLinkPoller(self.conf['testlink']['serverURL'], self.conf['testlink']['devkey'])
         if self.conf['general']['test_management'] == 'Testlink':
-            self.customFields = self.api.getCustomFields(self.data, self.conf)
+            self.api = TestLinkPoller(self.conf)
+            self.api.getCustomFields(self.data)
         else:
-            self.customFields = self.api.getDefaultCustomFields()
+            print('Skipping getCustomFields for test_management' + self.conf['general']['test_management'])
+        
 
 
     def loadEngine(self):
@@ -121,8 +119,8 @@ class fnts:
         log.msg('engines found', engines)
 
         for e in engines:       #scroll through all found engines and find the correct one
-            if e.__name__ == self.customFields['engine']:
-                self.engine = e(self.conf, self.customFields['engine'], self.conf['general']['outputdirectory'], self.conf['general']['testingdirectory'], "now")
+            if e.__name__ == self.conf['variables']['engine']:
+                self.engine = e(self.conf, "now")
                 break
         else:
             t = datetime.now()
@@ -137,7 +135,7 @@ class fnts:
             raise Exception('No test engine loaded')
         
         # getting testing scripts
-        scriptlist = self.customFields['scripts'].split()
+        scriptlist = self.conf['variables']['scripts'].split()
 
         engine_state = self.engine.init_environment()
 
@@ -145,7 +143,7 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, self.customFields['runtimes'])
+            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, self.conf['variables']['runtimes'])
             if engineresult != "ok":
                 t = datetime.now()
                 timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
@@ -156,7 +154,9 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = self.engine.get_test_results(self.data['testCaseName'], self.customFields['runtimes'], self.customFields['tolerance'])
+            results = self.engine.get_test_results(self.data['testCaseName'], self.conf['variables']['runtimes'], self.conf['variables']['tolerance'])
+            if self.conf['testlink']['uploadResults'] == True:
+                self.engine.upload_results(self.data['testCaseID'], self.data['testCaseName'], self.conf['variables']['runtimes'])
 
 
         engine_state = self.engine.teardown_environment()
@@ -166,7 +166,7 @@ class fnts:
             raise Exception('Engine error: ' + engineresult)
         else:
             return results
-            #self.customFields = self.api.getDefaultCustomFields()
+
 
 
     def updateVersion(self):
@@ -175,7 +175,7 @@ class fnts:
         #GIT
         if self.conf['general']['versioncontrol'] == "GIT":
             puller = gitpuller()
-            gitresult = puller.pull(self.conf['general']['testingdirectory'], self.customFields['tag'])
+            gitresult = puller.pull(self.conf['general']['testingdirectory'], self.conf['variables']['tag'])
             if gitresult != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
             testdir = self.conf['general']['testingdirectory']
@@ -187,7 +187,7 @@ class fnts:
                 log.msg('SVN error, running old tests. ERROR:', svnresult)
             #setting the testdir to point to the tests instead of the repository
             #if a tag is given and not found, the trunk is used as a test resource
-            if self.customFields['tag'] == "null":
+            if self.conf['variables']['tag'] == "null":
                 testdir = self.conf['general']['testingdirectory'] + "trunk/tests/"
             else:
                 if os.path.exists(self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/") != true:

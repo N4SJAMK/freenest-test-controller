@@ -8,24 +8,14 @@ from TestLinkAPI import TestlinkAPIClient
 
 
 class TestLinkPoller:
-    def __init__(self, server_url, devKey):
-        self.client = TestlinkAPIClientFNTS(server_url, devKey)
-        self.conf = {}
+    def __init__(self, conf):
+        self.conf = conf
+        self.client = TestlinkAPIClientFNTS(conf['testlink']['serverURL'], conf['testlink']['devkey'])
         self.data = None
-
-    def getDefaultCustomFields(self):
-        customFields['engine'] = "robotEngine"
-        customFields['scripts'] = self.data["testCaseName"] + ".txt"
-        customFields['runtimes'] = conf['variables']['default_runtimes'] 
-        customFields['tolerance'] = conf['variables']['default_tolerance']
-        customFields['tag'] = "null"
-
-    def getCustomFields(self, data, conf):
+    
+    def getCustomFields(self, data):
         try:
-            self.conf = conf
             self.data = data
-
-            customFields = {}
 
             # polling some needed data from TL database using TestLink API
             projectinfo=(self.client.getProjects())
@@ -58,51 +48,41 @@ class TestLinkPoller:
                 log.msg('Got test case information from poll:', tcinfo[0])
             else:
                 raise Exception('Failed to find correct test case information')
+         
+            cfEngine = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", "")
+            if cfEngine:
+                self.conf['variables']['engine'] = cfEngine
+                log.msg('Got engine from custom field:', cfEngine)
+            else:
+                self.conf['variables']['engine'] = self.conf['variables']['default_engine']
+            
+             #TODO use default from config if not given in custom field
 
-
-            #tclist=(self.client.getTestCasesForTestPlan(data['buildID']))
-            log.msg('Got all test cases for Plan')
-
-            cfEngine = (self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", ""))
-            log.msg('Got engine from custom field:', cfEngine)
-
-            cfScripts = (self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", ""))
-            log.msg('Got runnable tests from custom field:', cfScripts)
+            self.conf['variables']['scripts'] = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", "")
+            #log.msg('Got runnable tests from custom field:', cfScripts)
  
-            runtimes = (self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
-            log.msg('Got runtimes from custom field:', runtimes)
+            self.conf['variables']['runtimes'] = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
+            #log.msg('Got runtimes from custom field:', runtimes)
 
-            tolerance = (self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
-            log.msg('Got tolerance from custom field:', tolerance)
+            self.conf['variables']['tolerance'] = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
+            #log.msg('Got tolerance from custom field:', tolerance)
 
-            tag=(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", ""))
+            self.conf['variables']['tag'] = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", "")
+            
+            '''    
             if tag == "":
                 tag = "null"
                 log.msg('No tags found, going to run the newest tests.')
             else:
                 log.msg('Got version tag from custom field:', tag)
-
-            customFields['engine'] = cfEngine
-            customFields['scripts'] = cfScripts
-            customFields['tag'] = tag
-            if runtimes.isdigit():                                      
-                customFields['runtimes'] = int(runtimes)                  
-            else:                    
-                customFields['runtimes'] = conf['variables']['default_runtimes']
-            if tolerance.isdigit():                 
-                customFields['tolerance'] = int(tolerance)
-            else:                                                                                         
-                customFields['tolerance'] = conf['variables']['default_tolerance']
-
-
-            return customFields
-
+            '''
+                
         except Exception, e:
             #TestlinkAPI might be broken
             log.msg('Getting data with TestlinkAPI failed:', str(e))
             log.msg('Using default values')
 
-            return self.getDefaultCustomFields()
+            #return self.getDefaultCustomFields()
 
 
 

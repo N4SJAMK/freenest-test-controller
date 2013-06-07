@@ -329,23 +329,7 @@ class TestlinkAPIClient:
         ret = self.server.tl.createTestCase(argsAPI) 
         self.stepsList = []                    
         return ret 
-
-    # added by Niko Korhonen
-    def reportTCResult(self, tcid, tpid, status):
-        """ reportTCResult :
-        Report test result directly into Testlink
-        """
-        data = {"devKey":self.devKey, "testcaseid":tcid, "testplanid":tpid, "status":status, "guess":True}
-        return self.server.tl.reportTCResult(data)
-
-    def uploadTestCaseAttachment(self, internalid, title, description, filename, filetype, content):
-        """ uploadTestCaseAttachment :
-        Upload an attachment for the test case
-        """
-        data = {"devKey":self.devKey, "testcaseid":internalid, "title":title, "description":description, "filename":filename, "filetype":filetype, "content":content}
-        return self.server.tl.uploadTestCaseAttachment(data)
-
-                        
+         
     #
     #  ADDITIONAL FUNCTIONS
     #                                   
