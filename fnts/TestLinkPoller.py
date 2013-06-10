@@ -92,6 +92,20 @@ class TestLinkPoller:
         except Exception:
             self.conf['variables']['tag'] = ""
             
+        try:
+            sutUrl = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "SutUrl", "")
+            
+            if sutUrl != "":
+                for idx, item in enumerate(self.conf['variables']['dyn_args']):
+                    if 'IP' in item:
+                        item = ['IP', sutUrl]
+                        self.conf['variables']['dyn_args'][idx] = item
+                log.msg('Got System Under Test URL from custom field: ', sutUrl)
+            else:
+                raise Exception
+        except Exception:
+            self.conf['variables']['SutUrl'] = ""
+            
 # TestlinkAPIClient extensions
 
 class TestlinkAPIClientFNTS(TestlinkAPIClient):
