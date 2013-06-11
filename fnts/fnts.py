@@ -72,7 +72,12 @@ class fnts:
             self.api = TestLinkPoller(self.conf)
             self.api.getCustomFields(self.data)
         else:
-            print('Skipping getCustomFields for test_management' + self.conf['general']['test_management'])
+            print('Skipping getCustomFields for test_management: ' + self.conf['general']['test_management'])
+            self.conf['variables']['tag'] = "null"
+            self.conf['variables']['scripts'] = self.data['testCaseName'] + ".txt"
+            self.conf['variables']['engine'] = self.conf['variables']['default_engine']
+            self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
+            self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
         
 
 
