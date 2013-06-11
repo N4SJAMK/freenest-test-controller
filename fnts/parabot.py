@@ -5,29 +5,23 @@
 # Edited by Niko Korhonen / 2012
 #
 
-# imports
+import sys, os, glob
+import time
+from datetime import datetime
+import subprocess
+import getopt
+import yaml
+
 from robot.running import TestSuite
 from robot import utils
 from robot.conf import settings
-import os, glob
-import subprocess
-import time
-from datetime import datetime
-import sys
-import getopt
-import yaml
 from twisted.python import log
+
 from log_collector import logcollector
-
-
 
 class para():
     def __init__(self, conf, testCaseName, outputdir, testdir, testlist):
-        # loading config file
-        f = open('/etc/fnts.conf')
-        conf = yaml.load(f)
-        f.close
-
+        self.conf = conf
         self.log = log
 
         self.log.msg(testlist)
@@ -45,7 +39,7 @@ class para():
         self.forceSerialExecution = False
         self.baseDir = "./"
 
-        self.conf = conf
+        
 
         # reading variables from config
         self.max_parallel_tests = conf['grid']['max_parallel_tests']
@@ -285,7 +279,7 @@ class Pybot():
         self.output = self.suite_name + "_" + self.name + ".xml"
 
         #creating the command that is passed on for pybot
-        pybotCommand = "pybot --name " + self.suite_name + " --noncritical noncrit "
+        pybotCommand = self.conf['robot']['command'] + " --name " + self.suite_name + " --noncritical noncrit "
         pybotCommand = pybotCommand + "--outputdir " + self.logFolder + " "
         pybotCommand = pybotCommand + "--output " + self.output + " "   #output.xml
         pybotCommand = pybotCommand + "--log NONE "     #logfiles disabled

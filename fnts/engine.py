@@ -32,10 +32,11 @@ class Engine:
 	    overwrite methods as needed
 	'''
 
-	def __init__(self, vOutputdir, testdir, vScheduled):
-		self.vOutputdir = vOutputdir
-		self.testdir = testdir
-		self.scheduled = "now"
+	def __init__(self, conf, scheduled):
+		self.conf = conf
+		#self.vOutputdir = vOutputdir
+		#self.testdir = testdir
+		self.scheduled = scheduled
 
 	'''
 		used when test case is actually run, gets all arguments given throught API
