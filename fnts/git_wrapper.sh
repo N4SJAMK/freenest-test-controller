@@ -11,8 +11,8 @@ cd $1
 
 ssh-agent bash -c 'ssh-add /root/.ssh/root; git pull'
 
-if [ -n "$1" ]; then
-	git checkout tags/$1
+if [ -n "$2" ]; then
+	git checkout tags/$2
 else
 	git checkout master
 fi

@@ -71,14 +71,40 @@ class fnts:
         if self.conf['general']['test_management'] == 'Testlink':
             self.api = TestLinkPoller(self.conf)
             self.api.getCustomFields(self.data)
-        else:
-            print('Skipping getCustomFields for test_management: ' + self.conf['general']['test_management'])
-            self.conf['variables']['tag'] = "null"
+        else:            
+            if 'tag' in self.data:
+                rTag = self.data['tag']
+                self.conf['variables']['tag'] = rTag
+                log.msg('Got tag from request: '  + rTag)
+            else:
+                self.conf['variables']['tag'] = "null"
+                log.msg('Using default tag: ' + self.conf['variables']['tag'])
+            
+            if 'engine' in self.data:
+                rEngine = self.data['engine']
+                self.conf['variables']['engine'] = rEngine
+                log.msg('Got engine from request: ' + rEngine)
+            else:
+                self.conf['variables']['engine'] = self.conf['variables']['default_engine']
+                log.msg('Using default engine: ' , self.conf['variables']['default_engine'])
+            
+            if 'runtimes' in self.data:
+                rRuntimes = self.data['runtimes']
+                self.conf['variables']['runtimes'] = rRuntimes
+                log.msg('Got runtimes from request:',rRuntimes)
+            else:
+                self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
+                log.msg('Using default runtimes:',self.conf['variables']['default_runtimes'])
+            
+            if 'tolerance' in self.data:
+                rTolerance = self.data['tolerance']
+                self.conf['variables']['tolerance'] = rTolerance
+                log.msg('Got tolerance from request:',rTolerance)
+            else:
+                self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
+                log.msg('Using default tolerance:',self.conf['variables']['default_tolerance'])
+            
             self.conf['variables']['scripts'] = self.data['testCaseName'] + ".txt"
-            self.conf['variables']['engine'] = self.conf['variables']['default_engine']
-            self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
-            self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
-        
 
 
     def loadEngine(self):
