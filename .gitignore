@@ -6,3 +6,4 @@ debian/fnts
 *.debhelper
 *.pyc
 *.substvars
+*.swp

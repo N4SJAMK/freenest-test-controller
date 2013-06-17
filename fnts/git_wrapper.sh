@@ -1,4 +1,5 @@
 #!/bin/sh
+SSH_KEY="/var/lib/fnts/.ssh/fnts"
 
 if [ $# = 0 ]; then
     echo no parameters, exiting
@@ -9,12 +10,18 @@ CURDIR=$PWD
 
 cd $1
 
-ssh-agent bash -c 'ssh-add /root/.ssh/root; git pull'
+if [ -f $SSH_KEY ]; then
+    ssh-agent bash -c "ssh-add $SSH_KEY; git pull"
 
-if [ -n "$1" ]; then
-	git checkout tags/$1
+    if [ -n "$1" ]; then
+        git checkout tags/$1
+    else
+        git checkout master
+    fi
 else
-	git checkout master
+    echo "Can't find fnts ssh key from $SSH_KEY"
+    exit 1
 fi
 
 cd $CURDIR
+exit 0
