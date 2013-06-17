@@ -66,6 +66,7 @@ class fnts:
         file = open('/etc/fnts.conf')
         self.conf = yaml.load(file)
         file.close()
+        os.environ['DISPLAY'] = self.conf['general']['display']
 
     def getCustomFields(self):
         if self.conf['general']['test_management'] == 'Testlink':
