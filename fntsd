@@ -76,6 +76,10 @@ class fntsDaemon(xmlrpc.XMLRPC):
         deferred.addErrback(self.onError)
         return deferred
 
+    def xmlrpc_ping(self, data={}):
+        log.msg('ping')
+        return {'ping':'pong'}
+
 if __name__ == '__main__':      
     log.startLogging(sys.stdout)
     r = fntsDaemon()

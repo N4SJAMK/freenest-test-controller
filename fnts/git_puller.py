@@ -31,7 +31,7 @@ class gitpuller:
                 gitpull = subprocess.Popen(["sh", "git_wrapper.sh", testdir],cwd=fntsDir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
             else:
                 log.msg('pulling tests with tag:', tag)
-                gitpull = subprocess.Popen(["sh", "git_wrapper.sh", tag],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+                gitpull = subprocess.Popen(["sh", "git_wrapper.sh", testdir, tag],cwd=fntsDir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
             log.msg('GIT output list:', str(gitpull))
             # check and raise an exception if errors occur
             if str(gitpull[0]).find == ' ':
