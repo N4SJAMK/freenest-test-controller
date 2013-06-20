@@ -29,6 +29,7 @@ from engine import Engine
 from git_puller import gitpuller
 from svn_puller import svnpuller
 from TestLinkPoller import TestLinkPoller
+import string
 
 class fnts:
 
@@ -175,7 +176,7 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, self.conf['variables']['runtimes'])
+            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'])
             if engineresult != "ok":
                 t = datetime.now()
                 timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
@@ -186,7 +187,7 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = self.engine.get_test_results(self.data['testCaseName'], self.conf['variables']['runtimes'], self.conf['variables']['tolerance'])
+            results = self.engine.get_test_results(self.sanitizeFilename(self.data['testCaseName']), self.conf['variables']['runtimes'], self.conf['variables']['tolerance'])
             if self.conf['testlink']['uploadResults'] == True:
                 self.engine.upload_results(self.data['testCaseID'], self.data['testCaseName'], self.conf['variables']['runtimes'])
 
@@ -232,6 +233,9 @@ class fnts:
             msg = "Version control driver for " + self.conf['general']['versioncontrol'] + " was not found, tests cannot be updated"
             log.msg(msg)
 
+    def sanitizeFilename(self, filename):
+        filename = "'%s'" % (filename)
+        return filename
 
 
 
