@@ -21,6 +21,7 @@
 import sys, os, time
 from datetime import datetime
 from xml.etree import ElementTree as ET
+import re
 
 import yaml
 from twisted.python import log
@@ -234,7 +235,7 @@ class fnts:
             log.msg(msg)
 
     def sanitizeFilename(self, filename):
-        filename = "'%s'" % (filename)
+        filename = re.sub('\s', '_', filename)
         return filename
 
 
