@@ -9,6 +9,7 @@ then
 echo "remove"
 rm -v /usr/bin/fntsd
 rm -v /usr/share/pyshared/fnts
+rm -v /usr/lib/python2.7/dist-packages/fnts
 rm -v /etc/init.d/fnts
 rm -v /etc/fnts.conf
 
@@ -16,6 +17,7 @@ else
 
 echo "install"
 ln -sv ${WD}/fnts /usr/share/pyshared/fnts
+ln -sv ${WD}/fnts /usr/lib/python2.7/dist-packages/fnts
 ln -sv ${WD}/fntsd /usr/bin/fntsd
 ln -sv ${WD}/debian/fnts.init /etc/init.d/fnts
 ln -sv ${WD}/fnts/fnts.conf /etc/fnts.conf
