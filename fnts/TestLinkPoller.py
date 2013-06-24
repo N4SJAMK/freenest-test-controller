@@ -48,63 +48,64 @@ class TestLinkPoller:
             log.msg('Got test case information from poll:', tcinfo[0])
         else:
             raise Exception('Failed to find correct test case information')
+
+        variables = []
         
         try:
             cfEngine = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", "")
-            self.conf['variables']['engine'] = cfEngine
+            variables['engine'] = cfEngine
             log.msg('Got engine from custom field:', cfEngine)
         except:
-            self.conf['variables']['engine'] = self.conf['variables']['default_engine']
-            log.msg('Using defauult engine from config:', self.conf['variables']['default_engine'])
+            pass
         
         try:
             cfScripts = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", "")
             if cfScripts == "":
                 raise Exception
             else:
-                self.conf['variables']['scripts'] = cfScripts
+                variables['scripts'] = cfScripts
                 log.msg('Got runnable tests from custom field:', cfScripts)
         except Exception:
-            self.conf['variables']['scripts'] = data['testCaseName'] + ".txt"
-            log.msg('Running test: ', data['testCaseName'] + ".txt")
+            pass
     
         try:
             cfRuntimes = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
-            self.conf['variables']['runtimes'] = cfRuntimes
+            variables['runtimes'] = cfRuntimes
             log.msg('Got runtimes from custom field:', cfRuntimes)
         except ValueError:
-            defaultRuntimes = int(self.conf['variables']['default_runtimes'])
-            self.conf['variables']['runtimes'] = defaultRuntimes
-            log.msg('Using default runtimes from config:', defaultRuntimes)
+            pass
     
         try:
             cfTolerance = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
-            self.conf['variables']['tolerance'] = cfTolerance
+            variables['tolerance'] = cfTolerance
             log.msg('Got tolerance from custom field:', cfTolerance)
         except ValueError:
-            self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
-            log.msg('Using default tolerance from config:', self.conf['variables']['default_tolerance'])
+            pass
         
         try: 
             cfTag = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", "")
-            self.conf['variables']['tag'] = cfTag
+            variables['tag'] = cfTag
             log.msg('Got tag from custom field:', cfTag)
         except Exception:
-            self.conf['variables']['tag'] = ""
+            pass
+
+        try: 
+            confFile = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "configFile", "")
+            variables['confFile'] = confFile
+            log.msg('Got tag from custom field:', cfTag)
+        except Exception:
+            pass
             
         try:
             sutUrl = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "SutUrl", "")
-            
-            if sutUrl != "":
-                for idx, item in enumerate(self.conf['variables']['dyn_args']):
-                    if 'IP' in item:
-                        item = ['IP', sutUrl]
-                        self.conf['variables']['dyn_args'][idx] = item
-                log.msg('Got System Under Test URL from custom field: ', sutUrl)
+            if sutUrl != ""
+                variables['sutUrl'] = sutUrl
             else:
                 raise Exception
         except Exception:
-            self.conf['variables']['SutUrl'] = ""
+            pass
+
+        return variables
             
 # TestlinkAPIClient extensions
 

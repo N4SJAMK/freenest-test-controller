@@ -49,7 +49,7 @@ class fnts:
             self.loadConfigurations()
 
             #Get custom fields from TestLinkAPI
-            self.getCustomFields()
+            self.setVariables()
 
             #Update repo
             self.updateVersion()
@@ -70,44 +70,95 @@ class fnts:
         file.close()
         os.environ['DISPLAY'] = self.conf['general']['display']
 
-    def getCustomFields(self):
+    def setVariables(self):
         if self.conf['general']['test_management'] == 'Testlink':
             self.api = TestLinkPoller(self.conf)
-            self.api.getCustomFields(self.data)
+            varialbles = self.api.getCustomFields(self.data)
+            self.completeVariables(variables)
         else:            
-            if 'tag' in self.data:
-                rTag = self.data['tag']
-                self.conf['variables']['tag'] = rTag
-                log.msg('Got tag from request: '  + rTag)
-            else:
-                self.conf['variables']['tag'] = "null"
-                log.msg('Using default tag: ' + self.conf['variables']['tag'])
+            self.completeVariables(self.data)
+
+    def completeVariables(self, variables):
+
+        # Check if default config file is given
+        if 'configFile' in variables:
+            file = open(variables['configFile'])
+            fileVariables = yaml.load(file)
+            file.close()
+        else:
+            fileVariables = []
+
+        if 'tag' in variables:
+            rTag = variables['tag']
+            self.conf['variables']['tag'] = rTag
+            log.msg('Got tag from request: '  + rTag)
+        elif 'tag' in fileVariables:
+            self.conf['variables']['tag'] = fileVariables['tag']
+        else:
+            self.conf['variables']['tag'] = "null"
+            log.msg('Using default tag: ' + self.conf['variables']['tag'])
+        
+        if 'engine' in variables:
+            rEngine = variables['engine']
+            self.conf['variables']['engine'] = rEngine
+            log.msg('Got engine from request: ' + rEngine)
+        elif 'engine' in fileVariables:
+            self.conf['variables']['engine'] = fileVariables['engine']
+        else:
+            self.conf['variables']['engine'] = self.conf['variables']['default_engine']
+            log.msg('Using default engine: ' , self.conf['variables']['default_engine'])
+        
+        if 'runtimes' in variables:
+            rRuntimes = variables['runtimes']
+            self.conf['variables']['runtimes'] = rRuntimes
+            log.msg('Got runtimes from request:',rRuntimes)
+        elif 'runtimes' in fileVariables:
+            self.conf['variables']['runtimes'] = fileVariables['runtimes']
+        else:
+            self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
+            log.msg('Using default runtimes:',self.conf['variables']['default_runtimes'])
+        
+        if 'tolerance' in variables:
+            rTolerance = variables['tolerance']
+            self.conf['variables']['tolerance'] = rTolerance
+            log.msg('Got tolerance from request:',rTolerance)
+        elif 'tolerance' in fileVariables:
+            self.conf['variables']['tolerance'] = fileVariables['tolerance']
+        else:
+            self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
+            log.msg('Using default tolerance:',self.conf['variables']['default_tolerance'])
+
+        if 'scripts' in variables:
+            rScripts = variables['scripts']
+            self.conf['variables']['scripts'] = rScripts
+        elif 'scripts' in fileVariables:
+            self.conf['variables']['scripts'] = fileVariables['scripts']
+        else:
+            self.conf['variables']['scripts'] = variables['testCaseName'] + ".txt"
+            log.msg('Using default script:',self.conf['variables']['default_tolerance'])
+
+        if 'testingdirectory' in variables:
+            self.conf['general']['testingdirectory'] = variables['testingdirectory']
+        elif 'testingdirectory' in fileVariables:
+            self.conf['general']['testingdirectory'] = fileVariables['testingdirectory']
             
-            if 'engine' in self.data:
-                rEngine = self.data['engine']
-                self.conf['variables']['engine'] = rEngine
-                log.msg('Got engine from request: ' + rEngine)
-            else:
-                self.conf['variables']['engine'] = self.conf['variables']['default_engine']
-                log.msg('Using default engine: ' , self.conf['variables']['default_engine'])
-            
-            if 'runtimes' in self.data:
-                rRuntimes = self.data['runtimes']
-                self.conf['variables']['runtimes'] = rRuntimes
-                log.msg('Got runtimes from request:',rRuntimes)
-            else:
-                self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
-                log.msg('Using default runtimes:',self.conf['variables']['default_runtimes'])
-            
-            if 'tolerance' in self.data:
-                rTolerance = self.data['tolerance']
-                self.conf['variables']['tolerance'] = rTolerance
-                log.msg('Got tolerance from request:',rTolerance)
-            else:
-                self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
-                log.msg('Using default tolerance:',self.conf['variables']['default_tolerance'])
-            
-            self.conf['variables']['scripts'] = self.data['testCaseName'] + ".txt"
+        if 'outputdirectory' in variables:
+            self.conf['general']['outputdirectory'] = variables['outputdirectory']
+        elif 'testingdirectory' in fileVariables:
+            self.conf['general']['outputdirectory'] = fileVariables['outputdirectory']
+
+        changeSut = False
+        if 'sutUrl' in variables:
+            sutUrl = variables['sutUrl']
+            changeSut = True
+        elif 'sutUrl' in fileVariables:
+            sutUrl = fileVariables['sutUrl']
+            changeSut = True
+        if changeSut:
+            for idx, item in enumerate(self.conf['variables']['dyn_args']):
+                if 'IP' in item:
+                    item = ['IP', sutUrl]
+                    self.conf['variables']['dyn_args'][idx] = item
 
 
     def loadEngine(self):
