@@ -88,81 +88,20 @@ class fnts:
         else:
             fileVariables = {}
 
-        #if 'tag' in variables and variables['tag'] != "":
-        #    self.conf['variables']['tag'] = variables['tag']
-        #elif 'tag' in fileVariables and fileVariables['tag'] != "":
-        #    self.conf['variables']['tag'] = fileVariables['tag']
-        #else:
-        #    self.conf['variables']['tag'] = "null"
-        #    log.msg('Using default tag: ' + self.conf['variables']['tag'])
-
         self.conf['variables']['tag'] = self._helperCheckSteps([variables, fileVariables], 'tag') or 'null'
-        
-        #if 'engine' in variables and variables['engine'] != "":
-        #    self.conf['variables']['engine'] = variables['engine']
-        #elif 'engine' in fileVariables and fileVariables['engine'] != "":
-        #    self.conf['variables']['engine'] = fileVariables['engine']
-        #else:
-        #    self.conf['variables']['engine'] = self.conf['variables']['default_engine']
-        #    log.msg('Using default engine: ' , self.conf['variables']['default_engine'])
-
         self.conf['variables']['engine'] =  self._helperCheckSteps([variables, fileVariables], 'engine') or self.conf['variables']['default_engine']
-        
-        #if 'runtimes' in variables and variables['runtimes'] != "":
-        #    self.conf['variables']['runtimes'] = variables['runtimes']
-        #elif 'runtimes' in fileVariables and fileVariables['runtimes'] != "":
-        #    self.conf['variables']['runtimes'] = fileVariables['runtimes']
-        #else:
-        #    self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
-        #    log.msg('Using default runtimes:',self.conf['variables']['default_runtimes'])
         self.conf['variables']['runtimes'] =  self._helperCheckSteps([variables, fileVariables], 'runtimes') or self.conf['variables']['default_runtimes']
-        
-        #if 'tolerance' in variables and variables['tolerance'] != "":
-        #    self.conf['variables']['tolerance'] = variables['tolerance']
-        #elif 'tolerance' in fileVariables and fileVariables['tolerance'] != "":
-        #    self.conf['variables']['tolerance'] = fileVariables['tolerance']
-        #else:
-        #    self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
-        #    log.msg('Using default tolerance:',self.conf['variables']['default_tolerance'])
         self.conf['variables']['tolerance'] =  self._helperCheckSteps([variables, fileVariables], 'tolerance') or self.conf['variables']['default_tolerance']
-
-        #if 'scripts' in variables and variables['scripts'] != "":
-        #    self.conf['variables']['scripts'] = variables['scripts']
-        #elif 'scripts' in fileVariables and fileVariables['scripts'] != "":
-        #    self.conf['variables']['scripts'] = fileVariables['scripts']
-        #else:
-        #    self.conf['variables']['scripts'] = variables['testCaseName'] + ".txt"
-        #    log.msg('Using default script:',self.conf['variables']['default_tolerance'])
         self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scripts') or variables['testCaseName'] + ".txt"
 
-        #if 'testingdirectory' in variables and variables['testingdirectory'] != "":
-        #    self.conf['general']['testingdirectory'] = variables['testingdirectory']
-        #elif 'testingdirectory' in fileVariables and fileVariables['testingdirectory'] != "":
-        #    self.conf['general']['testingdirectory'] = fileVariables['testingdirectory']
         testdir = self._helperCheckSteps([variables, fileVariables], 'testingdirectory')
         if testdir:
             self.conf['general']['testingdirectory'] = testdir
             
-        #if 'outputdirectory' in variables and variables['outputdirectory'] != "":
-        #    self.conf['general']['outputdirectory'] = variables['outputdirectory']
-        #elif 'testingdirectory' in fileVariables and fileVariables['testingdirectory'] != "":
-        #    self.conf['general']['outputdirectory'] = fileVariables['outputdirectory']
         outputdir = self._helperCheckSteps([variables, fileVariables], 'outputdirectory')
         if outputdir:
             self.conf['general']['outputdirectory'] = outputdir
 
-        #changeSut = False
-        #if 'sutUrl' in variables and variables['sutUrl'] != "":
-        #    sutUrl = variables['sutUrl']
-        #    changeSut = True
-        #elif 'sutUrl' in fileVariables and fileVariables['sutUrl'] != "":
-        #    sutUrl = fileVariables['sutUrl']
-        #    changeSut = True
-        #if changeSut:
-        #    for idx, item in enumerate(self.conf['variables']['dyn_args']):
-        #        if 'IP' in item:
-        #            item = ['IP', sutUrl]
-        #            self.conf['variables']['dyn_args'][idx] = item
         sutUrl = self._helperCheckSteps([variables, fileVariables], 'sutUrl')
         if sutUrl:
             for idx, item in enumerate(self.conf['variables']['dyn_args']):
@@ -171,6 +110,8 @@ class fnts:
                     self.conf['variables']['dyn_args'][idx] = item
             
 
+    # This method checks if any of the dicts provided contains variable var 
+    # If some of the dicts contain var it returns it else it returns False.
     def _helperCheckSteps(self, steps, var):
         for step in steps:
             if var in step and step[var] != "":
