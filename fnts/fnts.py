@@ -81,8 +81,8 @@ class fnts:
     def completeVariables(self, variables):
 
         # Check if default config file is given
-        if 'configFile' in variables:
-            file = open(variables['configFile'])
+        if 'confFile' in variables:
+            file = open(variables['confFile'])
             fileVariables = yaml.load(file)
             file.close()
         else:
