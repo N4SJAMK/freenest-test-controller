@@ -49,7 +49,7 @@ class TestLinkPoller:
         else:
             raise Exception('Failed to find correct test case information')
 
-        variables = []
+        variables = {}
         
         try:
             cfEngine = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", "")
@@ -98,7 +98,7 @@ class TestLinkPoller:
             
         try:
             sutUrl = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "SutUrl", "")
-            if sutUrl != ""
+            if isinstance(sutUrl, str) and sutUrl != "":
                 variables['sutUrl'] = sutUrl
             else:
                 raise Exception
