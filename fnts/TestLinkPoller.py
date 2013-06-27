@@ -55,82 +55,15 @@ class TestLinkPoller:
         self._testCaseID = prefix + "-" + tcidlist[i]['tc_external_id']
         self._testCaseVersion = tcinfo[0]['version']
         self._testProjectID = data['testProjectID']
-        
-        #try:
-        #    cfEngine = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "testingEngine", "")
-        #    variables['engine'] = cfEngine
-        #    log.msg('Got engine from custom field:', cfEngine)
-        #except:
-        #    pass
-        engine = self._helperGetCustomFieldString("testingEngine")
-        if engine:
-            variables['engine'] = engine
-        
-        #try:
-        #    cfScripts = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "scriptNames", "")
-        #    if cfScripts == "":
-        #        raise Exception
-        #    else:
-        #        variables['scripts'] = cfScripts
-        #        log.msg('Got runnable tests from custom field:', cfScripts)
-        #except Exception:
-        #    pass
-        scripts = self._helperGetCustomFieldString("scriptNames")
-        if scripts:
-            variables['scripts'] = scripts
-    
-        #try:
-        #    cfRuntimes = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "runTimes", ""))
-        #    variables['runtimes'] = cfRuntimes
-        #    log.msg('Got runtimes from custom field:', cfRuntimes)
-        #except ValueError:
-        #    pass
-        runtimes = self._helperGetCustomFieldInt("runTimes")
-        if runtimes:
-            variables['runtimes'] = runtimes
-    
-        #try:
-        #    cfTolerance = int(self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tolerance", ""))
-        #    variables['tolerance'] = cfTolerance
-        #    log.msg('Got tolerance from custom field:', cfTolerance)
-        #except ValueError:
-        #    pass
-        tolerance = self._helperGetCustomFieldInt("tolerance")
-        if tolerance:
-            variables['tolerance'] = tolerance
-        
-        #try: 
-        #    cfTag = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "tag", "")
-        #    variables['tag'] = cfTag
-        #    log.msg('Got tag from custom field:', cfTag)
-        #except Exception:
-        #    pass
-        tag = self._helperGetCustomFieldString("tag")
-        if tag:
-            variables['tag'] = tag
 
-        #try: 
-        #    confFile = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "configFile", "")
-        #    variables['confFile'] = confFile
-        #    log.msg('Got tag from custom field:', cfTag)
-        #except Exception:
-        #    pass
-        confFile = self._helperGetCustomFieldString("configFile")
-        if confFile:
-            variables['confFile'] = confFile
-            
-        #try:
-        #    sutUrl = self.client.getTestCaseCustomFieldDesignValue(prefix + "-" + tcidlist[i]['tc_external_id'], tcinfo[0]['version'], data['testProjectID'], "SutUrl", "")
-        #    if isinstance(sutUrl, str) and sutUrl != "":
-        #        variables['sutUrl'] = sutUrl
-        #    else:
-        #        raise Exception
-        #except Exception:
-        #    pass
-        sutUrl = self._helperGetCustomFieldString("SutUrl")
-        if sutUrl:
-            variables['sutUrl'] = sutUrl
+        # Get these customfields from testlink 
+        customfields = ['engine', 'scripts', 'runtimes', 'tolerance', 'tag', 'confFile', 'sutUrl', 'gitLocation']
 
+        for varKey in customfields:
+            var = self._helperGetCustomFieldString(varKey)
+            if var:
+                variables[varKey] = var
+        
         return variables
 
     def _helperGetCustomFieldString(self, customField):
@@ -143,18 +76,6 @@ class TestLinkPoller:
         except Exception:
             return False
 
-    def _helperGetCustomFieldInt(self, customField):
-        try:
-            value = self.client.getTestCaseCustomFieldDesignValue(self._testCaseID, self._testCaseVersion, self._testProjectID, customField, "")
-            if isinstance(value, str) and value != "":
-                return int(value)
-            else:
-                return False
-        except ValueError:
-            raise Exception("Can't convert customfield " + customField + " to int")
-        except Exception:
-            return False
-            
 # TestlinkAPIClient extensions
 
 class TestlinkAPIClientFNTS(TestlinkAPIClient):

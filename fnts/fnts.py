@@ -96,11 +96,14 @@ class fnts:
 
         self.conf['variables']['tag'] = self._helperCheckSteps([variables, fileVariables], 'tag') or 'null'
         self.conf['variables']['engine'] =  self._helperCheckSteps([variables, fileVariables], 'engine') or self.conf['variables']['default_engine']
-        self.conf['variables']['runtimes'] =  self._helperCheckSteps([variables, fileVariables], 'runtimes') or self.conf['variables']['default_runtimes']
-        self.conf['variables']['tolerance'] =  self._helperCheckSteps([variables, fileVariables], 'tolerance') or self.conf['variables']['default_tolerance']
-        self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scripts') or variables['testCaseName'] + ".txt"
+        self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scripts') or self.data['testCaseName'] + ".txt"
+        try:
+            self.conf['variables']['runtimes'] =  int(self._helperCheckSteps([variables, fileVariables], 'runtimes')) or self.conf['variables']['default_runtimes']
+            self.conf['variables']['tolerance'] =  int(self._helperCheckSteps([variables, fileVariables], 'tolerance')) or self.conf['variables']['default_tolerance']
+        except ValueError, e:
+            raise Exception("Can't convert customfield to int " + str(e))
 
-        testdir = self._helperCheckSteps([variables, fileVariables], 'testingdirectory')
+        testdir = self._helperCheckSteps([variables, fileVariables], 'gitLocation')
         if testdir:
             self.conf['general']['testingdirectory'] = testdir
             
