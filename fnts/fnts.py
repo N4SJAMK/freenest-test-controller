@@ -82,7 +82,13 @@ class fnts:
 
         # Check if default config file is given
         if 'confFile' in variables:
-            file = open(variables['confFile'])
+            confFile = variables['confFile']
+            confDir = os.path.dirname(confFile)
+            # Pull the conf file directory in case it's a git repository
+            puller = gitpuller()
+            puller.pull(confDir, 'null')
+            # Read the config file
+            file = open(confFile)
             fileVariables = yaml.load(file)
             file.close()
         else:
