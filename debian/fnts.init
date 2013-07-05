@@ -18,21 +18,46 @@
 # Activate the python virtual environment ?
 #    . /path_to_virtualenv/activate
 
+USER_NAME="fnts"
+USER_GROUP="fnts"
+
+if [ "$(id -u)" != "0" ]; then
+        echo "You must run this script as a root"
+        exit 1
+fi
+
+if ! getent passwd | grep -q "^$USER_NAME:"; then
+    echo "$USER_NAME user does not exist. Aborting" >&2
+    exit 1
+fi
+if ! getent group | grep -q "^$USER_GROUP:" ; then
+    echo "$USER_GROUP group does not exist. Aborting" >&2
+    exit 1
+fi
+
+start_daemon() {
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd -u $(id -u $USER_NAME) -g $(id -g $USER_GROUP)
+}
+
+stop_daemon() {
+    kill `cat /var/run/fntsd.pid`
+}
+
 case "$1" in
   start)
     echo "Starting fnts daemon"
     # Start the daemon
-    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
+    start_daemon
     ;;
   stop)
     echo "Stopping fnts daemon"
     # Stop the daemon
-    kill `cat /var/run/fntsd.pid`
+    stop_daemon
     ;;
   restart|force-reload)
     echo "Restarting fnts daemon"
-    kill `cat /var/run/fntsd.pid`
-    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd
+    stop_daemon
+    start_daemon
     ;;
   *)
     echo "Usage: /etc/init.d/fntsd.sh {start|stop|restart}"

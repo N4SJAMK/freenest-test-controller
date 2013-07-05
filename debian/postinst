@@ -1,22 +1,22 @@
 #!/bin/sh
 set -e
-case "$1" in
-    configure)
-    ln -sf /usr/share/pyshared/fnts /usr/lib/python2.7/dist-packages/
-    echo "Please edit /etc/fnts.conf"
-    ;;
 
-    upgrade)
+case "$1" in
+
+    configure)
+        ln -sf /usr/share/pyshared/fnts /usr/lib/python2.7/dist-packages/
+        echo "Please edit /etc/fnts.conf"
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
-    rm -f /usr/lib/python2.7/dist-packages/fnts
+        rm -f /usr/lib/python2.7/dist-packages/fnts
     ;;
 
     *)
         echo "postinst called with unknown argument \`$1'" >&2
         exit 1
     ;;
+
 esac
 exit 0
 

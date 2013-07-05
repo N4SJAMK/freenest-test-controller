@@ -21,6 +21,7 @@
 import sys, os, time
 from datetime import datetime
 from xml.etree import ElementTree as ET
+import re
 
 import yaml
 from twisted.python import log
@@ -29,6 +30,7 @@ from engine import Engine
 from git_puller import gitpuller
 from svn_puller import svnpuller
 from TestLinkPoller import TestLinkPoller
+import string
 
 class fnts:
 
@@ -47,7 +49,7 @@ class fnts:
             self.loadConfigurations()
 
             #Get custom fields from TestLinkAPI
-            self.getCustomFields()
+            self.setVariables()
 
             #Update repo
             self.updateVersion()
@@ -66,45 +68,67 @@ class fnts:
         file = open('/etc/fnts.conf')
         self.conf = yaml.load(file)
         file.close()
+        os.environ['DISPLAY'] = self.conf['general']['display']
 
-    def getCustomFields(self):
+    def setVariables(self):
         if self.conf['general']['test_management'] == 'Testlink':
             self.api = TestLinkPoller(self.conf)
-            self.api.getCustomFields(self.data)
+            variables = self.api.getCustomFields(self.data)
+            self.completeVariables(variables)
         else:            
-            if 'tag' in self.data:
-                rTag = self.data['tag']
-                self.conf['variables']['tag'] = rTag
-                log.msg('Got tag from request: '  + rTag)
-            else:
-                self.conf['variables']['tag'] = "null"
-                log.msg('Using default tag: ' + self.conf['variables']['tag'])
+            self.completeVariables(self.data)
+
+    def completeVariables(self, variables):
+
+        # Check if default config file is given
+        if 'confFile' in variables:
+            confFile = variables['confFile']
+            confDir = os.path.dirname(confFile)
+            # Pull the conf file directory in case it's a git repository
+            puller = gitpuller()
+            puller.pull(confDir, 'null')
+            # Read the config file
+            file = open(confFile)
+            fileVariables = yaml.load(file)
+            file.close()
+        else:
+            fileVariables = {}
+
+        self.conf['variables']['tag'] = self._helperCheckSteps([variables, fileVariables], 'tag') or 'null'
+        self.conf['variables']['engine'] =  self._helperCheckSteps([variables, fileVariables], 'engine') or self.conf['variables']['default_engine']
+        self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scripts') or self.data['testCaseName'] + ".txt"
+        try:
+            self.conf['variables']['runtimes'] =  int(self._helperCheckSteps([variables, fileVariables], 'runtimes')) or self.conf['variables']['default_runtimes']
+            self.conf['variables']['tolerance'] =  int(self._helperCheckSteps([variables, fileVariables], 'tolerance')) or self.conf['variables']['default_tolerance']
+        except ValueError, e:
+            raise Exception("Can't convert customfield to int " + str(e))
+
+        testdir = self._helperCheckSteps([variables, fileVariables], 'gitLocation')
+        if testdir:
+            self.conf['general']['testingdirectory'] = testdir
             
-            if 'engine' in self.data:
-                rEngine = self.data['engine']
-                self.conf['variables']['engine'] = rEngine
-                log.msg('Got engine from request: ' + rEngine)
-            else:
-                self.conf['variables']['engine'] = self.conf['variables']['default_engine']
-                log.msg('Using default engine: ' , self.conf['variables']['default_engine'])
+        outputdir = self._helperCheckSteps([variables, fileVariables], 'outputdirectory')
+        if outputdir:
+            self.conf['general']['outputdirectory'] = outputdir
+
+        sutUrl = self._helperCheckSteps([variables, fileVariables], 'sutUrl')
+        if sutUrl:
+            for idx, item in enumerate(self.conf['variables']['dyn_args']):
+                if 'IP' in item:
+                    item = ['IP', sutUrl]
+                    self.conf['variables']['dyn_args'][idx] = item
             
-            if 'runtimes' in self.data:
-                rRuntimes = self.data['runtimes']
-                self.conf['variables']['runtimes'] = rRuntimes
-                log.msg('Got runtimes from request:',rRuntimes)
-            else:
-                self.conf['variables']['runtimes'] = self.conf['variables']['default_runtimes']
-                log.msg('Using default runtimes:',self.conf['variables']['default_runtimes'])
-            
-            if 'tolerance' in self.data:
-                rTolerance = self.data['tolerance']
-                self.conf['variables']['tolerance'] = rTolerance
-                log.msg('Got tolerance from request:',rTolerance)
-            else:
-                self.conf['variables']['tolerance'] = self.conf['variables']['default_tolerance']
-                log.msg('Using default tolerance:',self.conf['variables']['default_tolerance'])
-            
-            self.conf['variables']['scripts'] = self.data['testCaseName'] + ".txt"
+
+    # This method checks if any of the dicts provided contains variable var 
+    # If some of the dicts contain var it returns it else it returns False.
+    def _helperCheckSteps(self, steps, var):
+        for step in steps:
+            if var in step and step[var] != "":
+                ret = step[var]
+                break
+        else:
+            ret = False
+        return ret
 
 
     def loadEngine(self):
@@ -174,7 +198,7 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(self.data['testCaseName'], scriptlist, self.conf['variables']['runtimes'])
+            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'])
             if engineresult != "ok":
                 t = datetime.now()
                 timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
@@ -185,7 +209,7 @@ class fnts:
         if engine_state == 1:
             # Trying to get the results from engine
             log.msg('Trying to get test results')
-            results = self.engine.get_test_results(self.data['testCaseName'], self.conf['variables']['runtimes'], self.conf['variables']['tolerance'])
+            results = self.engine.get_test_results(self.sanitizeFilename(self.data['testCaseName']), self.conf['variables']['runtimes'], self.conf['variables']['tolerance'])
             if self.conf['testlink']['uploadResults'] == True:
                 self.engine.upload_results(self.data['testCaseID'], self.data['testCaseName'], self.conf['variables']['runtimes'])
 
@@ -231,6 +255,9 @@ class fnts:
             msg = "Version control driver for " + self.conf['general']['versioncontrol'] + " was not found, tests cannot be updated"
             log.msg(msg)
 
+    def sanitizeFilename(self, filename):
+        filename = re.sub('\s', '_', filename)
+        return filename
 
 
 

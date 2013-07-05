@@ -27,10 +27,10 @@ class gitpuller:
         try:
             fntsDir = os.path.dirname(os.path.realpath(__file__))
             if tag == "null":
-                log.msg('pulling tests')
+                log.msg('pulling repository')
                 gitpull = subprocess.Popen(["sh", "git_wrapper.sh", testdir],cwd=fntsDir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
             else:
-                log.msg('pulling tests with tag:', tag)
+                log.msg('pulling repository with tag:', tag)
                 gitpull = subprocess.Popen(["sh", "git_wrapper.sh", testdir, tag],cwd=fntsDir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
             log.msg('GIT output list:', str(gitpull))
             # check and raise an exception if errors occur
