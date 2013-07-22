@@ -5,6 +5,7 @@ from twisted.python import log
 
 from Cloud import Cloud
 from engine import Engine
+from log_collector import logcollector
 from parabot import para
 
 class cloudEngine(Engine):
@@ -17,6 +18,7 @@ class cloudEngine(Engine):
         self.vOutputdir = conf['general']['outputdirectory']
         self.result = -2
         self.skippedTests = []
+        self.logger = logcollector()
     
     def cloudInit(self, cloud):
         if cloud is None:
@@ -113,7 +115,7 @@ class cloudEngine(Engine):
                 
                 log.msg("Launching " + str(nodesLaunching) + " additional nodes")
                 for _n in range(0, nodesLaunching):
-                    r = self.cloud.InstanceManager.launchInstance()
+                    r = self.cloud.InstanceManager.launchInstance(self.conf['cloud']['image'], self.conf['cloud']['flavor'])
                     waiting.append(r)
                     
             if len(waiting) > 0:
@@ -135,7 +137,7 @@ class cloudEngine(Engine):
                         else:
                             retry = retry - 1
                     
-                    time.sleep(5) # not much to do while the system boots (grub wait and kernel load)
+                    time.sleep(10) # not much to do while the system boots (grub wait and kernel load)
                     #TODO: set grub timeout to 0 in node image
                     
                     ip = ""
@@ -145,14 +147,16 @@ class cloudEngine(Engine):
                                 ip = addresses[address][0]['addr']
                                 
                     s = socket.socket()
-                    s.settimeout(3.0)
+                    s.settimeout(1)
                     
+                    log.msg(details['server']['nodeName'] + " waiting for selenium to respond")
                     while not ready:
                         if retry == 0:
                             raise Exception("Instance launch delayed")
-                        time.sleep(5)
+                        time.sleep(10)
                         
                         try:
+
                             s.connect((ip, 5555))
                             s.close()
                             ready = True

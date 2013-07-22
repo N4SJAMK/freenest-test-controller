@@ -44,8 +44,8 @@ class gridEngine(Engine):
         self.result = -2
         self.timestamp = ""
         self.logger = logcollector()
-        log.msg( __name__ + ' loaded')
         self.skippedTests = []
+        log.msg( __name__ + ' loaded')
 
 
     def run_tests(self, testCaseName, testList, runTimes, daemon):

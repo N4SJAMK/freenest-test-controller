@@ -61,10 +61,11 @@ class robotEngine(Engine):
 
         cmd = self.robot_cmd + " --name " + testCaseName + " --noncritical noncrit"
         for arg in self.dyn_args:
-            # lets unset the hub address if we want to run test locally
             if arg[0] == 'HUB':
-                arg[1] = ""
-            cmd = cmd + " --variable " + arg[0] + ":" + arg[1]
+                # With robot engine we don't use HUB but still have to pass it as empty variable because it's probably in the robot scripts
+                cmd = cmd + " --variable HUB:"
+            else:
+                cmd = cmd + " --variable " + arg[0] + ":" + arg[1]
 
 
         if str(testList[0]).startswith("list_"):        #the custom field contains a test list file
