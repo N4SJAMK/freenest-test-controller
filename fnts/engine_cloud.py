@@ -1,94 +1,43 @@
-"""
-
-   Copyright (C) 2000-2012, JAMK University of Applied Sciences
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, version 2.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>
-
-"""
-
-import base64, os, subprocess, time
-from datetime import datetime
+import math, socket, os, time 
 from xml.etree import ElementTree as ET
 
 from twisted.python import log
 
-from git_puller import gitpuller
+from Cloud import Cloud
 from engine import Engine
 from parabot import para
-from TestLinkPoller import TestlinkAPIClientFNTS
-from log_collector import logcollector
 
-
-class gridEngine(Engine):
-
+class cloudEngine(Engine):
+    
     def __init__(self, conf, vScheduled):
         self.conf = conf
-        self.robot_cmd = conf['robot']['command']
-        self.devKey = conf['testlink']['devkey']
-        self.SERVER_URL = conf['testlink']['serverURL']
-        self.vOutputdir = conf['general']['outputdirectory']
-        self.testdir = conf['general']['testingdirectory']
-        self.hosts = []
         self.scheduled = vScheduled
-        self.notes = ""
+        self.cloud = None
+        self.testdir = conf['general']['testingdirectory']
+        self.vOutputdir = conf['general']['outputdirectory']
         self.result = -2
-        self.timestamp = ""
-        self.logger = logcollector()
-        log.msg( __name__ + ' loaded')
         self.skippedTests = []
-
-
-    def run_tests(self, testCaseName, testList, runTimes, daemon):
-        # using subprocess for running robot, cwd is the working directory
-        # stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
-        # or f if you want the output to be written in a file.
-
-        # building the command that is sent to RF
-        # name is used so RF doesn't create a huge, nasty looking name for the test suite
-        gridresult = ""
-        listedtests = []
+    
+    def cloudInit(self, cloud):
+        if cloud is None:
+            print("Initialize cloud API")
+            cloud = Cloud(self.conf)
+            cloud.getToken()
+        self.cloud = cloud
+        return cloud
+        
+    def run_tests(self, pTestCaseName, pTestList, pRuntimes, daemon):
+        
+        # Check that the tests exist
+        
         foundtests = []
-
         tests = ""
-
-        log.msg(testList[0])
-        if str(testList[0]).startswith("list_"):        #the custom field contains a test list file
-            log.msg('Loading tests from external file')
-            if os.path.exists(self.testdir + testList[0]):
-                f = open(self.testdir + testList[0], 'r')
-                for line in f:
-                    listedtests.append(line.rstrip('\n'))
-                testList = listedtests
-                f.close()
-
-
-        for t in testList:                      # checking that tests exist, so the script doesn't fail because of a missing test
+        gridresult = ""
+        
+        for t in pTestList:
             if os.path.exists(self.testdir + t):
                 if os.path.isdir(self.testdir + t):
-                    #the given path is a directory. Should all directories be given separately or would giving the root run all tests?
-                    #for dirname, dirnames, filenames in os.walk(self.testdir + t):
-                    #       log.msg(dirnames)
-                    #       #dirnames = [] #wiping dirnames so only the tests in current directory are run
-                    #       # editing the 'dirnames' list will stop os.walk() from recursing into there.
-                    #       if '.git' in dirnames:
-                    #               # don't go into any .git directories.
-                    #               dirnames.remove('.git')
-                    #log.msg(os.listdir(self.testdir + t))
                     for filename in os.listdir(self.testdir + t):
-
-                    # print path to all filenames.
-                    #for filename in filenames:
-                    #should match to supported filetypes
                         ext = ".txt", ".html", ".htm", ".xhtml", ".tsv", ".robot", ".rst", ".rest"
                         if filename.endswith(ext):
                             foundtests.append(t + filename)
@@ -99,35 +48,135 @@ class gridEngine(Engine):
             else:
                 self.skippedTests.append(t)
                 log.msg('Test not found, skipping', t)
-
-
+        
+        # adding found tests to the command
+        
         if foundtests != []:
-            for ft in foundtests:                      # adding found tests to the command
+            for ft in foundtests:
                 tests = tests + " " + self.testdir + ft
-        else:   # and if no tests were found...
+        else:
             log.msg('No runnable tests found!')
-            return "No runnable tests found!"
-
+            gridresult = "No runnable tests found!"
+            
+            
         testlist = tests.split()
-                
-        testCount = len(foundtests)*runTimes
-        testCountLeft = testCount
-        daemon._addTestsRunning(testCount)
 
+        # We want one node per test
+        predictNodeNeed = len(foundtests)
+        if predictNodeNeed == 0:
+            predictNodeNeed = 1
+        
+        waiting = []
+        nodesNeeded = 0
+        nodesLaunching = 0
+        nodesResuming = 0
+        
+        # Update current status
+        self.cloud.InstanceManager.getNodeInstances()
+        
+        nodesAvailable = len(self.cloud.InstanceManager.active) - self.cloud.InstanceManager.busy
+        
+        #FIXME: turn this into thread safe function
+        
+        # See if we need to launch additional nodes
+        if predictNodeNeed > nodesAvailable:
+            nodesNeeded = predictNodeNeed - nodesAvailable
+            
+            # First resume suspended if any, then try to launch additional
+            if len(self.cloud.InstanceManager.suspended) > 0:
+                nodesNeedResumed = nodesNeeded - len(self.cloud.InstanceManager.suspended)
+                if nodesNeedResumed < 0:
+                    nodesLaunching = math.fabs(nodesNeedResumed)
+                    nodesResuming = len(self.cloud.InstanceManager.suspended)
+                elif nodesNeedResumed == 0:
+                    nodesResuming = 1
+                else:
+                    nodesResuming = nodesNeedResumed
+                    nodesLaunching = nodesNeeded - nodesResuming
+            else:
+                nodesLaunching = nodesNeeded
+            
+            # We can't exceed the maximum nodes allowed
+            if (nodesLaunching + self.cloud.InstanceManager.instances) > self.conf['cloud']['max_nodes']:
+                log.msg("Would launch " + str(nodesLaunching) + " additional nodes, but it would exceed the configured maximum of " + str(self.conf['cloud']['max_nodes']))
+                nodesLaunching = nodesLaunching - self.cloud.InstanceManager.instances
+            
+            
+            if nodesResuming > 0:
+                log.msg("Resuming " + str(nodesResuming) + " suspended nodes")
+                for _n in range(0, nodesResuming):
+                    instanceId = self.cloud.InstanceManager.suspended.pop()
+                    r = self.cloud.InstanceManager.resumeInstance(instanceId)
+                    waiting.append({"server":{"id": instanceId }}) 
+            
+            if nodesLaunching > 0:
+                
+                log.msg("Launching " + str(nodesLaunching) + " additional nodes")
+                for _n in range(0, nodesLaunching):
+                    r = self.cloud.InstanceManager.launchInstance()
+                    waiting.append(r)
+                    
+            if len(waiting) > 0:
+                #TODO: parallel poll
+                for i in waiting:
+                    retry = 12
+                    instanceId = i['server']['id']
+                    active = False
+                    ready = False
+                    
+                    while not active:
+                        if retry == 0:
+                            raise Exception("Instance launch delayed")
+                        time.sleep(5)
+                        details = self.cloud.InstanceManager.getInstanceDetails(instanceId)
+                        if details['server']['status'] == "ACTIVE":
+                            active = True
+                            log.msg(details['server']['nodeName'] + ' active')
+                        else:
+                            retry = retry - 1
+                    
+                    time.sleep(5) # not much to do while the system boots (grub wait and kernel load)
+                    #TODO: set grub timeout to 0 in node image
+                    
+                    ip = ""
+                    addresses = details['server']['addresses']
+                    for address in addresses:
+                        if addresses[address][0]['version'] == 4:
+                                ip = addresses[address][0]['addr']
+                                
+                    s = socket.socket()
+                    s.settimeout(3.0)
+                    
+                    while not ready:
+                        if retry == 0:
+                            raise Exception("Instance launch delayed")
+                        time.sleep(5)
+                        
+                        try:
+                            s.connect((ip, 5555))
+                            s.close()
+                            ready = True
+                            log.msg(details['server']['nodeName'] + ' ready')
+                        except Exception, e:
+                            log.msg(str(e))
+                            retry = retry - 1
+                        
+        
+        # Begin to test
+        
         i = 1
         if gridresult == "":
-            while i <= runTimes:
+            while i <= pRuntimes:
                 try:
                     # output directory, each test case has its own folder and if one doesn't exist, it will be created.
-                    outputdir = self.vOutputdir + testCaseName + "/" + str(i) + "/" # own folder for each test run
+                    outputdir = self.vOutputdir + pTestCaseName + "/" + str(i) + "/" # own folder for each test run
 
                     if not os.path.exists(outputdir):
                         os.makedirs(outputdir)
 
                     log.msg('Sending tests for parabot:', tests)
 
-                    #robo = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-                    parabot = para(self.conf, testCaseName, outputdir, self.testdir, testlist)
+                    parabot = para(self.conf, pTestCaseName, outputdir, self.testdir, testlist)
                     grid = parabot.run()
                     self.hosts = grid
 
@@ -139,17 +188,12 @@ class gridEngine(Engine):
 
 
                 except Exception, e:
-                    daemon._addTestsRunning(-testCountLeft)
                     gridresult = str(e)
                     break   # only if robot fails to start or something is seriously wrong
 
-                testCountLeft = testCountLeft-len(foundtests)
-                daemon._addTestsRunning(-len(foundtests))
                 i = i + 1
 
         return gridresult
-
-
 
     def get_test_results(self, testCaseName, runTimes, tolerance):
         # Trying to get the results from output.xml, which is located in outputdir
@@ -180,12 +224,6 @@ class gridEngine(Engine):
                         xmlpath = "suite/" + xmlpath
                         o = o - 1
 
-                    #tests = tree.findall("suite/suite/test")
-                    #if tests == []:        # this happens in the case of single tests, so the path needs to be fixed
-                    #       tests = tree.findall("suite/test")
-                    #       if tests == []: # when there are more test suites
-                    #               tests = tree.findall("suite/suite/suite/test")
-
                     for test in foundtests:
                         resultnotes.append([])
                         if names_collected == False:
@@ -209,8 +247,6 @@ class gridEngine(Engine):
 
 
                     # looping through all tests
-                    # TODO: make it flexible!
-                    #testresults = tree.findall("suite/suite/test/status")
                     j = 0
 
                     o = 5
@@ -222,11 +258,6 @@ class gridEngine(Engine):
                             foundtestresults.append(test)
                         xmlpath = "suite/" + xmlpath
                         o = o - 1
-
-                    #if testresults == []:  # this happens in the case of single tests, so the path needs to be fixed
-                    #       testresults = tree.findall("suite/test/status")
-                    #       if testresults == []: # when there are more test suites
-                    #               testresults = tree.findall("suite/suite/suite/test/status")
 
                     for testresult in foundtestresults:
                         testattrlist = testresult.attrib
@@ -312,96 +343,8 @@ class gridEngine(Engine):
                 for t in self.skippedTests:
                     self.notes = self.notes + t + ": SKIPPED\n\n"
 
-            # test reports
-            # Here the original Robot Framework reports are made visible. A link is generated for each report, so the user only
-            # needs to go to the address to see an accurate report about what has happened.
-            """
-            noproblems = 1
-            try:
-                    #getting the ip from Google
-                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.connect(("8.8.8.8",80))
-                    ip = s.getsockname()[0]
-                    s.close()
-
-            except Exception, e:    # if the socket fails for some reason...
-                    log.msg("SOCKET ERROR: %s", str(e))
-                    noproblems = 0
-                    self.notes = self.notes + "Failed to create links for accurate reports. \nCheck the log for details.\n"
-
-
-            if noproblems == 1:
-                    self.notes = self.notes + "See accurate reports here: \n"
-                    i = 1
-                    while i <= runTimes:
-                            self.notes = self.notes + str(i) + ". http://" + ip + self.vOutputdir.split('www')[1] + testCaseName + "/" + str(i) + "/report.html\n"
-                            i = i + 1
-            """
-
         # creating the list of results
         results = []
         results.append(self.result)
         results.append(self.notes)
         return results
-
-
-    def get_testcases(self):
-        puller = gitpuller()
-        gitresult = puller.pull(str(self.testdir))
-        if gitresult != "ok":
-            log.msg('git error:', gitresult)
-            self.notes = gitresult
-            return False
-        else:
-            return True
-
-
-    def upload_results(self, tcID, testCaseName, runTimes):
-        # This method is used for packing the reports into one zip-package and uploading that to Testlink
-        log.msg("Packaging results...")
-        no_problems = 1
-        self.tcID = tcID
-
-        try:
-            outputdir = self.vOutputdir + testCaseName + "/"
-
-            t = datetime.now()
-            time = t.strftime("%Y%m%d%H%M%S")
-            filename = "results_" + time
-            cmd = "zip -r " + filename + ".zip"
-
-            i = 1
-            while i <= runTimes:
-                cmd = cmd + " " + str(i)
-                i = i + 1
-
-            cmdlist = cmd.split()
-
-            # creating the zip-package
-            package = subprocess.Popen(cmdlist,cwd=outputdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
-            log.msg("Files packed, output:", str(package))
-        except Exception, e:
-            log.msg("PACKAGING ERROR:", str(e))
-            no_problems = 0
-
-
-        if no_problems == 1:
-            try:
-                # base64 encoding the package so it doesn't get corrupted
-                #base64.encode(open(outputdir + filename, 'rb'), open(outputdir + filename, 'w'))
-                with open(outputdir + filename + ".zip", 'rb') as fin, open(outputdir + filename + "_b64.zip", 'w') as fout:
-                    base64.encode(fin, fout)
-            except Exception, e:
-                log.msg("ENCODING ERROR:", str(e))
-                no_problems = 0
-
-
-            if no_problems == 1:
-                try:
-                    # uploading the package
-                    client = TestlinkAPIClientFNTS(self.SERVER_URL, self.devKey)
-                    up = client.uploadTestCaseAttachment(self.tcID, "results", "Reports from Robot Framework", filename + "_b64.zip", "zip", outputdir + filename + "_b64.zip")
-                    log.msg(str(up))
-
-                except Exception, e:
-                    log.msg("UPLOADING ERROR:", str(e))

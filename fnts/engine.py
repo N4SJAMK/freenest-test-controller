@@ -50,7 +50,7 @@ class Engine:
 	
 	def get_test_results(self,*args):
 		''' -1 error, 0 fail, 1 pass'''
-		return (-1, 'Engine class, not usable', t.strftime("%Y-%m-%d %H:%M:%S"))
+		return (-1, 'Engine class, not usable', time.strftime("%Y-%m-%d %H:%M:%S"))
 
 	def get_testcases(self,*args):
 		pass

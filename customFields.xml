@@ -106,7 +106,7 @@
 		<name><![CDATA[engine]]></name>
 		<label><![CDATA[Testing Engine]]></label>
 		<type><![CDATA[6]]></type>
-		<possible_values><![CDATA[robotEngine|gridEngine]]></possible_values>
+		<possible_values><![CDATA[cloudEngine|gridEngine|robotEngine]]></possible_values>
 		<default_value><![CDATA[]]></default_value>
 		<valid_regexp><![CDATA[]]></valid_regexp>
 		<length_min><![CDATA[0]]></length_min>

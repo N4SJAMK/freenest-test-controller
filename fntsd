@@ -17,34 +17,42 @@
 
 """
 
-import sys, os, time
+import os, sys
 from datetime import datetime
-from xml.etree import ElementTree as ET
 
-import yaml
-from twisted.web import xmlrpc, server
 from twisted.application import internet, service
 from twisted.internet import reactor, threads
 from twisted.python import log
+from twisted.web import server, xmlrpc
+import yaml
 
 from fnts import fnts
 
 
 class fntsDaemon(xmlrpc.XMLRPC):
 
+    testsRunning = 0
+    cloud = None
     rResult = {}
-
+       
+    file = open('/etc/fnts.conf')
+    conf = yaml.load(file)
+    file.close()
+    os.environ['DISPLAY'] = conf['general']['display']
+    
     def executeTestCase(self, data):
         log.msg('Got a request')
         log.msg(data)
 
         #talk with main program, send data and expect result
-        f = fnts.fnts()
+        f = fnts.fnts(self.conf, self.cloud, self)
 
-	    # calling the FNTS core
-        (result, notes, timestamp) = f.run(data)
+        # calling the FNTS core
+        (result, notes, cloud) = f.run(data)
+        
+        self.cloud = cloud
 
-	    # processing results to be sent back to TestLink / whoever called
+        # processing results to be sent back to TestLink / whoever called
         if(result == 1):
             self.rResult['result'] = 'p'
         elif(result == 0):
@@ -79,6 +87,17 @@ class fntsDaemon(xmlrpc.XMLRPC):
     def xmlrpc_ping(self, data={}):
         log.msg('ping')
         return {'ping':'pong'}
+    
+    def xmlrpc_getTestsRunning(self, data={}):
+        return self.testsRunning
+    
+    def _addTestsRunning(self, count):
+        self.testsRunning = self.testsRunning + count
+        log.msg("Current workload: " + str(self.testsRunning))
+    
+    def _getTestsRunning(self):
+        return self.testsRunning
+        
 
 if __name__ == '__main__':      
     log.startLogging(sys.stdout)

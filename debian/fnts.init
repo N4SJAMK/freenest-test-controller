@@ -20,6 +20,7 @@
 
 USER_NAME="fnts"
 USER_GROUP="fnts"
+PIDFILE="/var/run/fntsd.pid"
 
 if [ "$(id -u)" != "0" ]; then
         echo "You must run this script as a root"
@@ -36,26 +37,33 @@ if ! getent group | grep -q "^$USER_GROUP:" ; then
 fi
 
 start_daemon() {
-    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=/var/run/fntsd.pid --logfile=/var/log/fntsd.log -y /usr/bin/fntsd -u $(id -u $USER_NAME) -g $(id -g $USER_GROUP)
+    twistd  --chroot=/ --rundir=/usr/bin/ --pidfile=$PIDFILE --logfile=/var/log/fntsd.log -y /usr/bin/fntsd -u $(id -u $USER_NAME) -g $(id -g $USER_GROUP)
 }
 
 stop_daemon() {
-    kill `cat /var/run/fntsd.pid`
+    if [ -e $PIDFILE ]
+    then
+        kill `cat $PIDFILE`
+        rm $PIDFILE
+    else
+        echo "$PIDFILE not found, service not running?"
+        exit 1
+    fi
 }
 
 case "$1" in
   start)
-    echo "Starting fnts daemon"
+    echo "Starting FNTS daemon"
     # Start the daemon
     start_daemon
     ;;
   stop)
-    echo "Stopping fnts daemon"
+    echo "Stopping FNTS daemon"
     # Stop the daemon
     stop_daemon
     ;;
   restart|force-reload)
-    echo "Restarting fnts daemon"
+    echo "Restarting FNTS daemon"
     stop_daemon
     start_daemon
     ;;

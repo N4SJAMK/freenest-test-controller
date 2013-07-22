@@ -16,20 +16,17 @@
 
 """
 
-import socket
-import base64
-import sys, os, time
-import subprocess
-import yaml
+import base64, os, socket, subprocess, time
 from datetime import datetime
 from xml.etree import ElementTree as ET
 
 from twisted.python import log
 
-from TestLinkPoller import TestlinkAPIClientFNTS
-from git_puller import gitpuller
 from engine import Engine
+from git_puller import gitpuller
 from log_collector import logcollector
+from TestLinkPoller import TestlinkAPIClientFNTS
+
 
 class robotEngine(Engine):
 
@@ -51,7 +48,7 @@ class robotEngine(Engine):
         self.slave_user = conf['general']['slave_user']
         log.msg( __name__ + ' loaded')
 
-    def run_tests(self, testCaseName, testList, runTimes):
+    def run_tests(self, testCaseName, testList, runTimes, daemon):
         # using subprocess for running robot, cwd is the working directory
         # stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
         # or a file object if you want the output to be written in a file.
@@ -102,7 +99,10 @@ class robotEngine(Engine):
 
         log.msg('got following values', testCaseName, testList, runTimes)
         log.msg('running tests', runTimes, 'times')
-
+        
+        testCount = len(foundtests)*runTimes
+        testCountLeft = testCount
+        daemon._addTestsRunning(testCount)
 
         i = 1
         if roboresult == "":
@@ -135,9 +135,12 @@ class robotEngine(Engine):
 
 
                 except Exception, e:
+                    daemon._addTestsRunning(-testCountLeft)
                     roboresult = str(e)
                     break   # only if robot fails to start or something is seriously wrong
 
+                testCountLeft = testCountLeft-len(foundtests)
+                daemon._addTestsRunning(-len(foundtests))
                 i = i + 1
 
 
@@ -239,20 +242,14 @@ class robotEngine(Engine):
 
                         j = j + 1
 
-
-                    t = datetime.now()
-                    self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-
                     log.msg('Got results from output.xml')
 
                 except Exception, e:
                     # if something goes wrong, the message and blocked result are returned to Testlink
                     self.result = -1
-                    self.notes = "\nXML ERROR: " + str(e)
-                    t = datetime.now()
-                    self.timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
+                    self.notes = "\nXML ERROR: " + str(e)                 
                     log.msg('xml error:', str(e))
-                    return (self.result, self.notes, self.timestamp)
+                    return (self.result, self.notes)
 
                 i = i + 1
 
@@ -333,12 +330,6 @@ class robotEngine(Engine):
         results = []
         results.append(self.result)
         results.append(self.notes)
-        #results.append(self.scheduled)
-        results.append(self.timestamp)
-
-        # pack and upload results
-        #self.upload_results(testCaseName, runTimes)
-
         return results
 
 

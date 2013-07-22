@@ -18,57 +18,46 @@
 
 """
 
-import sys, os, time
-from datetime import datetime
-from xml.etree import ElementTree as ET
-import re
+import os, re
 
-import yaml
 from twisted.python import log
+import yaml
 
 from engine import Engine
 from git_puller import gitpuller
 from svn_puller import svnpuller
 from TestLinkPoller import TestLinkPoller
-import string
+
 
 class fnts:
 
-    def __init__(self):
+    def __init__(self, conf, cloud, daemon):
         self.engine = None
-        self.conf = {}
+        self.conf = conf
         self.data = None
-        self.api = None
+        self.cloud = cloud
+        self.daemon = daemon
 
     def run(self, data):
         
         self.data = data
 
         try:
-            #Load configurations from configuratiosn file
-            self.loadConfigurations()
-
+            
             #Get custom fields from TestLinkAPI
             self.setVariables()
 
             #Update repo
-            self.updateVersion()
+            #self.updateVersion()
 
             #Load correct engine
-            self.loadEngine()
+            self.simpleLoadEngine()
 
             #Run tests and return values
             return self.runTests()
 
         except Exception, e:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return (-1, str(e), timestamp)
-
-    def loadConfigurations(self):
-        file = open('/etc/fnts.conf')
-        self.conf = yaml.load(file)
-        file.close()
-        os.environ['DISPLAY'] = self.conf['general']['display']
+            return (-1, str(e), self.cloud)
 
     def setVariables(self):
         if self.conf['general']['test_management'] == 'Testlink':
@@ -88,9 +77,9 @@ class fnts:
             puller = gitpuller()
             puller.pull(confDir, 'null')
             # Read the config file
-            file = open(confFile)
-            fileVariables = yaml.load(file)
-            file.close()
+            cFile = open(confFile)
+            fileVariables = yaml.load(cFile)
+            cFile.close()
         else:
             fileVariables = {}
 
@@ -178,11 +167,23 @@ class fnts:
                 self.engine = e(self.conf, "now")
                 break
         else:
-            t = datetime.now()
-            timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
             log.msg('The correct testing engine was not found, tests cannot be run. Check the custom field value')
             raise Exception('Test engine was not found, check custom fields')
-
+        
+    def simpleLoadEngine(self):
+        varEngine = self.conf['variables']['engine']
+        if varEngine == "gridEngine":
+            module = __import__("fnts.engine_grid")
+            self.engine = module.engine_grid.gridEngine(self.conf, 'now')
+        elif varEngine == "robotEngine":
+            module = __import__("fnts.engine_robot")
+            self.engine = module.engine_robot.robotEngine(self.conf, 'now')
+        elif varEngine == "cloudEngine":
+            module = __import__("fnts.engine_cloud")
+            self.engine = module.engine_cloud.cloudEngine(self.conf, 'now')
+            self.cloud = self.engine.cloudInit(self.cloud)
+        else:
+            raise Exception('Unknown engine ' + varEngine)
 
     def runTests(self):
 
@@ -198,13 +199,11 @@ class fnts:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
 
-            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'])
+            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'], self.daemon)
             if engineresult != "ok":
-                t = datetime.now()
-                timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
+                engine_state = 0
                 log.msg('Engine error: ', engineresult)
                 raise Exception('Engine error: ' + engineresult)
-                engine_state = 0
 
         if engine_state == 1:
             # Trying to get the results from engine
@@ -220,6 +219,7 @@ class fnts:
             log.msg('Something went wrong while running engine')
             raise Exception('Engine error: ' + engineresult)
         else:
+            results.append(self.cloud)
             return results
 
 
@@ -245,7 +245,7 @@ class fnts:
             if self.conf['variables']['tag'] == "null":
                 testdir = self.conf['general']['testingdirectory'] + "trunk/tests/"
             else:
-                if os.path.exists(self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/") != true:
+                if os.path.exists(self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/") != True:
                     log.msg("Tagged tests were not found from the repository, running tests from trunk")
                     testdir = self.conf['general']['testingdirectory'] + "/trunk/tests/"
                 else:
