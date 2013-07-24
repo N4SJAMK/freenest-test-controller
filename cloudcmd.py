@@ -34,7 +34,7 @@ class Commander:
             
         elif s[0] == "help":
             print("Commands:")
-            print("quit, list, launch, terminate")
+            print("quit, list, launch, terminate, backup, save")
             
         elif s[0] == "list":
             if s[1] == "instances":
@@ -105,5 +105,44 @@ class Commander:
                     return
                 else:
                     r = self.cloud.apiRequestWithMethod("/servers/" + iid, "DELETE")
+        
+        elif s[0] == "backup":
+            iid = ""
+            if s[2] == "":
+                print "backup <instance> <name>"
+                return
+            else:
+                r = self.cloud.apiRequest("/servers", None)
+                jsondata = json.loads(r)
+                for server in jsondata['servers']:
+                    if server['name'] == s[1]:
+                        iid = server['id']
+                
+                if iid == "":
+                    print "Did not find instance with name " + s[1]
+                    return
+                else:
+                    postData = '{"createBackup":{"name":"' + s[2] + '","backup_type":"daily","rotation":1}}'
+                    r = self.cloud.apiRequest("/servers/" + iid + "/action", postData)
+                    
+        elif s[0] == "save":
+            iid = ""
+            if s[2] == "":
+                print "save <instance> <name>"
+                return
+            else:
+                r = self.cloud.apiRequest("/servers", None)
+                jsondata = json.loads(r)
+                for server in jsondata['servers']:
+                    if server['name'] == s[1]:
+                        iid = server['id']
+                
+                if iid == "":
+                    print "Did not find instance with name " + s[1]
+                    return
+                else:
+                    postData = '{"createImage":{"name":"' + s[2] + '","metadata":{}}}'
+                    r = self.cloud.apiRequest("/servers/" + iid + "/action", postData)
+                    
         
 c = Commander()
