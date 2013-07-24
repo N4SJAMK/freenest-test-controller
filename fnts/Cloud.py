@@ -61,6 +61,51 @@ class Cloud():
             return content
         except Exception, e:
             log.msg("API request failed: " + str(e))
+            
+    def apiRequestWithMethod(self, uri="", method="GET", postData=None):
+        
+        #TODO: check if token is about to expire
+        
+        if self.tokenIsValid is False:
+            if not self.getToken():
+                raise Exception("No valid token, can't do API request")
+        
+        apiEndpoints = self.token['access']['serviceCatalog']
+        url = ""
+                
+        # TODO: if uri == /servers;
+        # get compute url
+        for endpoint in apiEndpoints:
+            if endpoint['type'] == "compute":
+                url = endpoint['endpoints'][0]['publicURL'] + uri
+                break
+        
+        header = { 'X-Auth-Token' : self.token['access']['token']['id'] }
+        
+        if postData is not None:
+            header['Content-type'] = 'application/json' 
+               
+        try:
+            req = RequestWithMethod(url, method,  postData, header)
+            res = urllib2.urlopen(req)
+            content = res.read()
+            return content
+        except Exception, e:
+            log.msg("API request failed: " + str(e))
+
+class RequestWithMethod(urllib2.Request):
+    """Workaround for using DELETE with urllib2"""
+    def __init__(self, url, method, data=None, headers={},\
+        origin_req_host=None, unverifiable=False):
+        self._method = method
+        urllib2.Request.__init__(self, url, data, headers,\
+                 origin_req_host, unverifiable)
+
+    def get_method(self):
+        if self._method:
+            return self._method
+        else:
+            return urllib2.Request.get_method(self)        
 
 class InstanceManager:
 
