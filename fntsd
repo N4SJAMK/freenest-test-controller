@@ -70,6 +70,21 @@ class fntsDaemon(xmlrpc.XMLRPC):
         log.msg('-----------------------------------------------------')
         return {'result':self.rResult['result'],'notes':self.rResult['notes'], 'scheduled':'now', 'timestampISO':self.rResult['timestampISO']}
 
+    def getServerDetails(self):
+        log.msg('Got a server detail request')
+        f = fnts.fnts(self.conf, self.cloud, self)
+        engines = f.searchEngines()
+        
+        strEngines = ""
+        for engine in engines:
+            if strEngines == "":
+                strEngines = str(engine.__name__)
+            else:
+                strEngines = strEngines + " " + str(engine.__name__)
+
+        details = {'engines':strEngines}
+        return details
+
     def onError(self, result):
         log.msg(result)
         log.msg('Something went wrong on threading execution.')
@@ -83,6 +98,12 @@ class fntsDaemon(xmlrpc.XMLRPC):
         deferred.addCallback(self.onExecutionDone)
         deferred.addErrback(self.onError)
         return deferred
+
+    def xmlrpc_getServerDetails(self, data):
+        details = threads.deferToThread(self.getServerDetails)
+        details.addCallback(self.onExecutionDone)
+        details.addErrback(self.onError)
+        return details
 
     def xmlrpc_ping(self, data={}):
         log.msg('ping')

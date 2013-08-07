@@ -51,7 +51,14 @@ class fnts:
             #self.updateVersion()
 
             #Load correct engine
-            self.simpleLoadEngine()
+            try:
+                self.simpleLoadEngine()
+            except Exception, e:
+                engines = self.searchEngines()
+                if engines != []:
+                    self.loadEngine(engines)
+                else:
+                    raise Exception('No testing engines found!')
 
             #Run tests and return values
             return self.runTests()
@@ -120,7 +127,7 @@ class fnts:
         return ret
 
 
-    def loadEngine(self):
+    def searchEngines(self):
 
         cls = Engine
         engines = []
@@ -159,16 +166,19 @@ class fnts:
 
         if engines == []:
             log.msg('No test engines found')
+        else:
+            log.msg('engines found: ', str(engines))
 
-        log.msg('engines found', engines)
+        return engines
 
+    def loadEngine(engines):
         for e in engines:       #scroll through all found engines and find the correct one
             if e.__name__ == self.conf['variables']['engine']:
                 self.engine = e(self.conf, "now")
                 break
         else:
             log.msg('The correct testing engine was not found, tests cannot be run. Check the custom field value')
-            raise Exception('Test engine was not found, check custom fields')
+            raise Exception('The correct test engine was not found, check the custom field value')
         
     def simpleLoadEngine(self):
         varEngine = self.conf['variables']['engine']
