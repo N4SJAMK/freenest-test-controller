@@ -37,13 +37,17 @@ class fnts:
         self.data = None
         self.cloud = cloud
         self.daemon = daemon
+        self.useReceivedTests = "false"
 
     def run(self, data):
         
         self.data = data
 
         try:
+            if self.data['script'] != "":
+                self.writeScriptToFile()
             
+
             #Get custom fields from TestLinkAPI
             self.setVariables()
 
@@ -269,6 +273,18 @@ class fnts:
         filename = re.sub('\s', '_', filename)
         return filename
 
+    def writeScriptToFile(self):
+        log.msg(self.data['script'])
+        
+        try:
+            file = self.conf['general']['writtentestdirectory'] + self.data['scripts']
+            f = open(file, 'w')
+            f.write(self.data['script'])
+            f.close()
+            log.msg('Script written to file')
+            self.useReceivedTests = "true"
+        except Exception, e:
+            log.msg('ERROR: Writing the script to a file failed!' + str(e))
 
 
 if __name__ == "__main__":
