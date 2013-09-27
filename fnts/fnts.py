@@ -24,7 +24,7 @@ from twisted.python import log
 import yaml
 
 from engine import Engine
-from git_puller import gitpuller
+from git_wrapper import gitwrapper
 from svn_puller import svnpuller
 from TestLinkPoller import TestLinkPoller
 
@@ -44,15 +44,15 @@ class fnts:
         self.data = data
 
         try:
-            if self.data['script'] != "":
+            if len(self.data['script'].strip()) != 0:
                 self.writeScriptToFile()
+            elif len(self.data['gitRepository'].strip()) != 0:
+                #Update repo
+                self.updateVersion()
             
 
             #Get custom fields from TestLinkAPI
             self.setVariables()
-
-            #Update repo
-            #self.updateVersion()
 
             #Load correct engine
             try:
@@ -103,7 +103,10 @@ class fnts:
         except ValueError, e:
             raise Exception("Can't convert customfield to int " + str(e))
 
-        testdir = self._helperCheckSteps([variables, fileVariables], 'gitLocation')
+        if self.useReceivedTests != "true":
+            testdir = self._helperCheckSteps([variables, fileVariables], 'gitLocation')
+        else:
+            testdir = self.conf['general']['writtentestdirectory']
         if testdir:
             self.conf['general']['testingdirectory'] = testdir
             
@@ -175,7 +178,7 @@ class fnts:
 
         return engines
 
-    def loadEngine(engines):
+    def loadEngine(self, engines):
         for e in engines:       #scroll through all found engines and find the correct one
             if e.__name__ == self.conf['variables']['engine']:
                 self.engine = e(self.conf, "now")
@@ -243,8 +246,9 @@ class fnts:
         #TODO: this part could be more flexible
         #GIT
         if self.conf['general']['versioncontrol'] == "GIT":
-            puller = gitpuller()
-            gitresult = puller.pull(self.conf['general']['testingdirectory'], self.conf['variables']['tag'])
+            wrapper = gitwrapper()
+            gitrepository = self.data['gitrepository']
+            gitresult = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.conf['variables']['tag'])
             if gitresult != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
             testdir = self.conf['general']['testingdirectory']

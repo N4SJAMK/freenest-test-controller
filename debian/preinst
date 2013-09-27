@@ -25,6 +25,7 @@ case "$1" in
                 --ingroup $SERVER_GROUP \
                 --no-create-home \
                 --disabled-password \
+                --shell /bin/bash \
                 $SERVER_USER 2>/dev/null || true
             echo "..done"
         fi
@@ -33,10 +34,17 @@ case "$1" in
             -d $SERVER_HOME   \
             -g $SERVER_GROUP  \
             $SERVER_USER
-        # 5. adjust file and directory permissions
+
+        # 5. create SSH key
+        cd $SERVER_HOME
+        mkdir .ssh
+        cd .ssh
+        ssh-keygen -t rsa -N "" -f "fnts"
+
+        # 6. adjust file and directory permissions
         if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
         then
-            chown -R $SERVER_USER:adm $SERVER_HOME
+            chown -R $SERVER_USER:$SERVER_USER $SERVER_HOME
             chmod u=rwx,g=rxs,o= $SERVER_HOME
         fi
     ;;
