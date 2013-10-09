@@ -44,16 +44,17 @@ class fnts:
         self.data = data
 
         try:
-            if len(self.data['script'].strip()) != 0:
-                self.writeScriptToFile()
-            elif len(self.data['gitRepository'].strip()) != 0:
-                #Update repo
-                self.updateVersion()
-            
-
             #Get custom fields from TestLinkAPI
             self.setVariables()
 
+            if len(self.data['script'].strip()) != 0:
+                #script found from the call, no need for Git
+                self.writeScriptToFile()
+            elif len(self.data['gitRepository'].strip()) != 0:
+                #Update / clone repo
+                vcresult = self.updateVersion()
+                if str(vcresult) != "ok":
+                    raise Exception('Version Control failure: ' + vcresult)
             #Load correct engine
             try:
                 self.simpleLoadEngine()
@@ -75,7 +76,7 @@ class fnts:
             self.api = TestLinkPoller(self.conf)
             variables = self.api.getCustomFields(self.data)
             self.completeVariables(variables)
-        else:            
+        else:
             self.completeVariables(self.data)
 
     def completeVariables(self, variables):
@@ -247,11 +248,12 @@ class fnts:
         #GIT
         if self.conf['general']['versioncontrol'] == "GIT":
             wrapper = gitwrapper()
-            gitrepository = self.data['gitrepository']
-            gitresult = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.conf['variables']['tag'])
-            if gitresult != "ok":
+            gitrepository = self.data['gitRepository']
+            gitresult = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.data['tag'])
+            if str(gitresult) != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
             testdir = self.conf['general']['testingdirectory']
+            return gitresult
         #SVN
         elif self.conf['general']['versioncontrol'] == "SVN":
             puller = svnpuller()
@@ -268,10 +270,12 @@ class fnts:
                     testdir = self.conf['general']['testingdirectory'] + "/trunk/tests/"
                 else:
                     testdir = self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/"
+            return svnresult
         #something else, not officially supported
         else:
             msg = "Version control driver for " + self.conf['general']['versioncontrol'] + " was not found, tests cannot be updated"
             log.msg(msg)
+            return "No version control found"
 
     def sanitizeFilename(self, filename):
         filename = re.sub('\s', '_', filename)

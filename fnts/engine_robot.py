@@ -23,7 +23,7 @@ from xml.etree import ElementTree as ET
 from twisted.python import log
 
 from engine import Engine
-from git_puller import gitpuller
+#from git_puller import gitpuller
 from log_collector import logcollector
 from TestLinkPoller import TestlinkAPIClientFNTS
 
@@ -334,15 +334,15 @@ class robotEngine(Engine):
         return results
 
 
-    def get_testcases(self):
-        puller = gitpuller()
-        gitresult = puller.pull(str(self.testdir))
-        if gitresult != "ok":
-            log.msg('git error:', gitresult)
-            self.notes = gitresult
-            return False
-        else:
-            return True
+    #def get_testcases(self):
+    #    puller = gitpuller()
+    #    gitresult = puller.pull(str(self.testdir))
+    #    if gitresult != "ok":
+    #        log.msg('git error:', gitresult)
+    #        self.notes = gitresult
+    #        return False
+    #    else:
+    #        return True
 
 
     def upload_results(self, tcID, testCaseName, runTimes):

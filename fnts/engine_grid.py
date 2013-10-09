@@ -22,7 +22,7 @@ from xml.etree import ElementTree as ET
 
 from twisted.python import log
 
-from git_puller import gitpuller
+#from git_puller import gitpuller
 from engine import Engine
 from parabot import para
 from TestLinkPoller import TestlinkAPIClientFNTS
@@ -345,15 +345,15 @@ class gridEngine(Engine):
         return results
 
 
-    def get_testcases(self):
-        puller = gitpuller()
-        gitresult = puller.pull(str(self.testdir))
-        if gitresult != "ok":
-            log.msg('git error:', gitresult)
-            self.notes = gitresult
-            return False
-        else:
-            return True
+    #def get_testcases(self):
+    #    puller = gitpuller()
+    #    gitresult = puller.pull(str(self.testdir))
+    #    if gitresult != "ok":
+    #        log.msg('git error:', gitresult)
+    #        self.notes = gitresult
+    #        return False
+    #    else:
+    #        return True
 
 
     def upload_results(self, tcID, testCaseName, runTimes):

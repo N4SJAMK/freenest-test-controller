@@ -35,11 +35,9 @@ case "$1" in
             -g $SERVER_GROUP  \
             $SERVER_USER
 
-        # 5. create SSH key
+        # 5. create .ssh -folder
         cd $SERVER_HOME
         mkdir .ssh
-        cd .ssh
-        ssh-keygen -t rsa -N "" -f "fnts"
 
         # 6. adjust file and directory permissions
         if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
@@ -47,6 +45,12 @@ case "$1" in
             chown -R $SERVER_USER:$SERVER_USER $SERVER_HOME
             chmod u=rwx,g=rxs,o= $SERVER_HOME
         fi
+
+        # 7. create SSH key
+        cd .ssh
+        sudo -u fnts ssh-keygen -t rsa -N "" -f "fnts"
+        echo "created SSH key, use this key for authorization:"
+        cat fnts.pub
     ;;
 
     abort-upgrade)
