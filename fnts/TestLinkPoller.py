@@ -57,18 +57,19 @@ class TestLinkPoller:
         self._testProjectID = data['testProjectID']
 
         # Get these customfields from testlink 
-        customfields = ['engine', 'scripts', 'runtimes', 'tolerance', 'tag', 'confFile', 'sutUrl', 'gitLocation']
+        customfields = ['testingEngine', 'scriptNames', 'runtimes', 'tolerance', 'tag', 'confFile', 'sutUrl', 'repository']
 
         for varKey in customfields:
             var = self._helperGetCustomFieldString(varKey)
             if var:
                 variables[varKey] = var
-        
+        log.msg('variables: ' + str(variables))
         return variables
 
     def _helperGetCustomFieldString(self, customField):
         try:
             value = self.client.getTestCaseCustomFieldDesignValue(self._testCaseID, self._testCaseVersion, self._testProjectID, customField, "")
+            log.msg(value)
             if isinstance(value, str) and value != "":
                 return value
             else:

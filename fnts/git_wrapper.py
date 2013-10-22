@@ -51,7 +51,7 @@ class gitwrapper:
         else:
             gitresult =  self.clone(testdir, repository, reponame, host, tag)
             
-        return gitresult
+        return gitresult, reponame
 
 
     def pull(self, testdir, repository, tag):

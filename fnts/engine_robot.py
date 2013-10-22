@@ -55,6 +55,7 @@ class robotEngine(Engine):
 
         # building the command that is sent to RF
         # name is used so RF doesn't create a huge, nasty looking name for the test suite
+        log.msg(testCaseName, testList, runTimes)
         roboresult = ""
         foundtests = []
         listedtests = []
@@ -69,7 +70,7 @@ class robotEngine(Engine):
 
 
         if str(testList[0]).startswith("list_"):        #the custom field contains a test list file
-            log.msg('Loading tests from external file')
+            log.msg('Loading tests from an external file')
             if os.path.exists(self.testdir + testList[0]):
                 try:
                     f = open(self.testdir + testList[0], 'r')
@@ -82,6 +83,7 @@ class robotEngine(Engine):
 
 
         for t in testList:                      # checking that tests exist, so the script doesn't fail because of missing tests
+            log.msg(self.testdir + t)
             if os.path.exists(self.testdir + t):
                 foundtests.append(t)
             else:
@@ -98,7 +100,7 @@ class robotEngine(Engine):
 
         cmdlist = cmd.split()
 
-        log.msg('got following values', testCaseName, testList, runTimes)
+        log.msg('got following values:', testCaseName, foundtests)
         log.msg('running tests', runTimes, 'times')
         
         testCount = len(foundtests)*runTimes

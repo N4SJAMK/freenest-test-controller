@@ -46,11 +46,10 @@ class fnts:
         try:
             #Get custom fields from TestLinkAPI
             self.setVariables()
-
-            if len(self.data['script'].strip()) != 0:
+            if 'script' in self.data and len(self.data['script'].strip()) != 0:
                 #script found from the call, no need for Git
                 self.writeScriptToFile()
-            elif len(self.data['gitRepository'].strip()) != 0:
+            elif (('gitRepository' in self.data and len(self.data['repository'].strip()) != 0) or len(self.conf['variables']['repository']) != 0) and self.conf['variables']['repository'] != "null":
                 #Update / clone repo
                 vcresult = self.updateVersion()
                 if str(vcresult) != "ok":
@@ -72,7 +71,7 @@ class fnts:
             return (-1, str(e), self.cloud)
 
     def setVariables(self):
-        if self.conf['general']['test_management'] == 'Testlink':
+        if self.conf['general']['test_management'] == 'Testlink' and 'testProjectID' in self.data:
             self.api = TestLinkPoller(self.conf)
             variables = self.api.getCustomFields(self.data)
             self.completeVariables(variables)
@@ -86,8 +85,8 @@ class fnts:
             confFile = variables['confFile']
             confDir = os.path.dirname(confFile)
             # Pull the conf file directory in case it's a git repository
-            puller = gitpuller()
-            puller.pull(confDir, 'null')
+            #puller = gitpuller()
+            #puller.pull(confDir, 'null')
             # Read the config file
             cFile = open(confFile)
             fileVariables = yaml.load(cFile)
@@ -95,21 +94,25 @@ class fnts:
         else:
             fileVariables = {}
 
+        if 'repository' not in self.data:
+            self.data['repository'] = ''
+        if 'tag' not in self.data:
+            self.data['tag'] = ''
+
         self.conf['variables']['tag'] = self._helperCheckSteps([variables, fileVariables], 'tag') or 'null'
-        self.conf['variables']['engine'] =  self._helperCheckSteps([variables, fileVariables], 'engine') or self.conf['variables']['default_engine']
-        self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scripts') or self.data['testCaseName'] + ".txt"
+        self.conf['variables']['engine'] =  self._helperCheckSteps([variables, fileVariables], 'testingEngine') or self.conf['variables']['default_engine']
+        self.conf['variables']['scripts'] =  self._helperCheckSteps([variables, fileVariables], 'scriptNames') or self.data['testCaseName'] + ".txt"
+        self.conf['variables']['repository'] = self.data['repository'] or self._helperCheckSteps([variables, fileVariables], 'repository') or "null"
+        self.conf['variables']['tag'] = self.data['tag'] or self._helperCheckSteps([variables, fileVariables], 'tag') or "null"
+        log.msg(self.conf['variables']['repository'])
         try:
             self.conf['variables']['runtimes'] =  int(self._helperCheckSteps([variables, fileVariables], 'runtimes')) or self.conf['variables']['default_runtimes']
             self.conf['variables']['tolerance'] =  int(self._helperCheckSteps([variables, fileVariables], 'tolerance')) or self.conf['variables']['default_tolerance']
         except ValueError, e:
             raise Exception("Can't convert customfield to int " + str(e))
 
-        if self.useReceivedTests != "true":
-            testdir = self._helperCheckSteps([variables, fileVariables], 'gitLocation')
-        else:
-            testdir = self.conf['general']['writtentestdirectory']
-        if testdir:
-            self.conf['general']['testingdirectory'] = testdir
+        if self.useReceivedTests == "true":
+            self.conf['general']['testingdirectory'] = self.conf['general']['writtentestdirectory']
             
         outputdir = self._helperCheckSteps([variables, fileVariables], 'outputdirectory')
         if outputdir:
@@ -216,6 +219,7 @@ class fnts:
         if engine_state == 1:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
+            log.msg(self.conf['general']['testingdirectory'])
 
             engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'], self.daemon)
             if engineresult != "ok":
@@ -248,13 +252,16 @@ class fnts:
         #GIT
         if self.conf['general']['versioncontrol'] == "GIT":
             wrapper = gitwrapper()
-            gitrepository = self.data['gitRepository']
-            gitresult = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.data['tag'])
+            gitrepository = self.conf['variables']['repository']
+            gitresult, reponame = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.data['tag'])
             if str(gitresult) != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
-            testdir = self.conf['general']['testingdirectory']
+            else:
+                self.conf['general']['testingdirectory'] = self.conf['general']['testingdirectory'] + reponame + "/"
+            #testdir = self.conf['general']['testingdirectory']
             return gitresult
         #SVN
+        #TODO: update so it works the same way as Git
         elif self.conf['general']['versioncontrol'] == "SVN":
             puller = svnpuller()
             svnresult = puller.pull(self.vTestdir)
@@ -293,6 +300,8 @@ class fnts:
             self.useReceivedTests = "true"
         except Exception, e:
             log.msg('ERROR: Writing the script to a file failed!' + str(e))
+            if not f.closed: 
+                f.close()
 
 
 if __name__ == "__main__":
