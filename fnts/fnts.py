@@ -37,7 +37,7 @@ class fnts:
         self.data = None
         self.cloud = cloud
         self.daemon = daemon
-        self.useReceivedTests = "false"
+        self.useReceivedTests = False
 
     def run(self, data):
         
@@ -109,10 +109,12 @@ class fnts:
             self.conf['variables']['runtimes'] =  int(self._helperCheckSteps([variables, fileVariables], 'runtimes')) or self.conf['variables']['default_runtimes']
             self.conf['variables']['tolerance'] =  int(self._helperCheckSteps([variables, fileVariables], 'tolerance')) or self.conf['variables']['default_tolerance']
         except ValueError, e:
-            raise Exception("Can't convert customfield to int " + str(e))
+            raise Exception("Cannot convert customfield to int " + str(e))
 
-        if self.useReceivedTests == "true":
-            self.conf['general']['testingdirectory'] = self.conf['general']['writtentestdirectory']
+        #log.msg('hurrdurr' + str(self.useReceivedTests))
+        #if self.useReceivedTests == True:
+        #    self.conf['general']['testingdirectory'] = self.conf['general']['writtentestdirectory']
+        #    log.msg('directory set to ' + self.conf['general']['testingdirectory'])
             
         outputdir = self._helperCheckSteps([variables, fileVariables], 'outputdirectory')
         if outputdir:
@@ -127,7 +129,7 @@ class fnts:
             
 
     # This method checks if any of the dicts provided contains variable var 
-    # If some of the dicts contain var it returns it else it returns False.
+    # If some of the dicts contain var, it returns it. Else it returns False.
     def _helperCheckSteps(self, steps, var):
         for step in steps:
             if var in step and step[var] != "":
@@ -184,10 +186,13 @@ class fnts:
 
     def loadEngine(self, engines):
         for e in engines:       #scroll through all found engines and find the correct one
-            if e.__name__ == self.conf['variables']['engine']:
+            log.msg("we want: " + self.conf['variables']['engine'] + ", but we get: " + e.__name__)
+            if str(e.__name__).strip() == str(self.conf['variables']['engine']).strip():
+                log.msg("trying to run engine " + self.conf['variables']['engine'])
                 self.engine = e(self.conf, "now")
                 break
-        else:
+        
+        if self.engine == None:
             log.msg('The correct testing engine was not found, tests cannot be run. Check the custom field value')
             raise Exception('The correct test engine was not found, check the custom field value')
         
@@ -282,7 +287,7 @@ class fnts:
         else:
             msg = "Version control driver for " + self.conf['general']['versioncontrol'] + " was not found, tests cannot be updated"
             log.msg(msg)
-            return "No version control found"
+            return "Version control driver not found"
 
     def sanitizeFilename(self, filename):
         filename = re.sub('\s', '_', filename)
@@ -292,17 +297,18 @@ class fnts:
         log.msg(self.data['script'])
         
         try:
-            file = self.conf['general']['writtentestdirectory'] + self.data['scripts']
-            f = open(file, 'w')
-            f.write(self.data['script'])
-            f.close()
-            log.msg('Script written to file')
-            self.useReceivedTests = "true"
+            file = self.conf['general']['writtentestdirectory'] + self.data['scriptNames'] + ".txt"
+            if not os.path.exists(self.conf['general']['writtentestdirectory']):
+                os.makedirs(self.conf['general']['writtentestdirectory'])
+            with open(file, 'w') as f:
+                f.write(self.data['script'])
+                f.close()
+                self.useReceivedTests = True
+                self.conf['general']['testingdirectory'] = self.conf['general']['writtentestdirectory']
+                log.msg('Script written to file')
         except Exception, e:
             log.msg('ERROR: Writing the script to a file failed!' + str(e))
-            if not f.closed: 
-                f.close()
-
+            
 
 if __name__ == "__main__":
 

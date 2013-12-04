@@ -23,7 +23,6 @@ from xml.etree import ElementTree as ET
 from twisted.python import log
 
 from engine import Engine
-#from git_puller import gitpuller
 from log_collector import logcollector
 from TestLinkPoller import TestlinkAPIClientFNTS
 
@@ -87,6 +86,16 @@ class robotEngine(Engine):
             if os.path.exists(self.testdir + t):
                 foundtests.append(t)
             else:
+                # check if the test exists with different file extension
+                for ext in ['.txt', '.html', '.xhtml', '.tsv']:
+                    if '.txt' in t or '.html' in t or '.xhtml' in t or '.tsv' in t:
+                        t = t.rsplit('.', 1)[0]
+                    t = t + ext
+
+                    if os.path.exists(self.testdir + t):
+                        foundtests.append(t)
+                        break
+            if t not in foundtests:
                 log.msg('Test not found, skipping', t)
 
 
@@ -307,7 +316,7 @@ class robotEngine(Engine):
 
             # test reports
             # Here the original Robot Framework reports are made visible. A link is generated for each report, so the user only
-            # needs to go to the address to see an accurate report about what has happened.
+            # needs to go to the address to see an accurate report about what has happened. Only works if the user and Master Tester are in the same network
             noproblems = 1
             try:
                 #getting the ip from Google
@@ -335,16 +344,6 @@ class robotEngine(Engine):
         results.append(self.notes)
         return results
 
-
-    #def get_testcases(self):
-    #    puller = gitpuller()
-    #    gitresult = puller.pull(str(self.testdir))
-    #    if gitresult != "ok":
-    #        log.msg('git error:', gitresult)
-    #        self.notes = gitresult
-    #        return False
-    #    else:
-    #        return True
 
 
     def upload_results(self, tcID, testCaseName, runTimes):
