@@ -21,7 +21,7 @@ import subprocess
 
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from git_puller import gitpuller
+from git_wrapper import gitwrapper
 
 from twisted.python import log
 
