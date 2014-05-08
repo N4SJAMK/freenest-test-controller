@@ -81,7 +81,7 @@ class testbenchEngine(Engine):
             while i <= runTimes:
                 try:
                     # output directory, each test case has its own folder and if one doesn't exist, it will be created.
-                    outputdir = "/home/adminuser/example/" + str(i) + "/" # own folder for each test run
+                    outputdir = "/home/adminuser/example/" + str(i) + "/" # own folder for each test run, the project name needs to be flexible
                     if not os.path.isdir(outputdir):
                         os.makedirs(outputdir)
 
@@ -90,15 +90,15 @@ class testbenchEngine(Engine):
 
                         log.msg('Running command:', cmd)
 
-                        testbench = subprocess.Popen(cmdlist,cwd="/home/adminuser/example/",stdout=fo,stderr=fo).communicate()
+                        testbench = subprocess.Popen(cmdlist,cwd="/home/adminuser/example/",stdout=fo,stderr=fo).communicate()   #the project name needs to be flexible, maybe the same way as in RF engine?
 
                     
                     # move output files into different folder for processing
                     cpcmd = "cp TEST-com.vaadin.* " + outputdir
-                    moveit = subprocess.Popen(cpcmd,cwd="/home/adminuser/example/target/failsafe-reports/",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+                    moveit = subprocess.Popen(cpcmd,cwd="/home/adminuser/example/target/failsafe-reports/",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate() # flexibility needed once again
                     log.msg(str(moveit))
 
-                    # check and raise an exception if testbench cannot be run
+                    # check and raise an exception if testbench cannot be run, needs to be tweaked
                     #if outputfile == '':
                     #    raise Exception(str(testbench[1]))
                     #else:
@@ -136,6 +136,7 @@ class testbenchEngine(Engine):
                     outputdir = "/home/adminuser/example/" + str(i) + "/"
                     resultnotes.append([])
                     for test in self.testlist:
+                        log.msg("getting results for " + test)
                         outputfile = outputdir + "TEST-com.vaadin.testbenchexample." + test + ".xml" #the project name needs to be dynamic...
                         tree = ET.parse(outputfile)
                     
@@ -179,7 +180,7 @@ class testbenchEngine(Engine):
                     return [self.result, self.notes]
                 
                 i = i + 1
-        log.msg(str(resultnotes))
+        #log.msg(str(resultnotes))
                         
 
 
@@ -197,7 +198,7 @@ class testbenchEngine(Engine):
 
 
                 self.notes = "The test set was run " + str(runTimes) + " times\n"
-                self.notes = self.notes + "Number of test cases: " + str(run) + "\n"
+                self.notes = self.notes + "Total number of tests run: " + str(run) + "\n"
                 self.notes = self.notes + "Failed tests: " + str(failed) + "\n"
                 self.notes = self.notes + "Blocked tests: " + str(blocked) + "\n"
                 self.notes = self.notes + "Skipped tests: " + str(skipped) + "\n"

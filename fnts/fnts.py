@@ -64,7 +64,7 @@ class fnts:
                 else:
                     raise Exception('No testing engines found!')
 
-            #Run tests and return values
+            #Run tests and return results
             return self.runTests()
 
         except Exception, e:
@@ -217,7 +217,8 @@ class fnts:
             raise Exception('No test engine loaded')
         
         # getting testing scripts
-        scriptlist = self.conf['variables']['scripts'].split()
+        log.msg(self.conf['variables']['scripts'])
+        scriptlist = self.conf['variables']['scripts'].split(", ")
 
         engine_state = self.engine.init_environment()
 
@@ -289,9 +290,13 @@ class fnts:
             log.msg(msg)
             return "Version control driver not found"
 
+
+
     def sanitizeFilename(self, filename):
         filename = re.sub('\s', '_', filename)
         return filename
+
+
 
     def writeScriptToFile(self):
         log.msg(self.data['script'])
@@ -308,6 +313,7 @@ class fnts:
                 log.msg('Script written to file')
         except Exception, e:
             log.msg('ERROR: Writing the script to a file failed!' + str(e))
+
             
 
 if __name__ == "__main__":
