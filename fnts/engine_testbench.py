@@ -30,17 +30,17 @@ from TestLinkPoller import TestlinkAPIClientFNTS
 class testbenchEngine(Engine):
 
     def __init__(self, conf, vScheduled):
+        log.msg('trying to load the engine')
         self.conf = conf
         self.devKey = conf['testlink']['devkey']
         self.dyn_args = conf['variables']['dyn_args']
         self.host = ""
         self.notes = ""
         self.result = -1
-        self.robot_cmd = conf['robot']['command']
         self.scheduled = vScheduled
-        self.testdir = conf['general']['testingdirectory']
+        self.testdir = conf['testbench']['testingdirectory']
         self.timestamp = ""
-        self.vOutputdir = conf['general']['outputdirectory']
+        self.vOutputdir = conf['testbench']['outputdirectory']
         self.SERVER_URL = conf['testlink']['serverURL']
         self.slaves = conf['general']['slaves']
         self.slave_user = conf['general']['slave_user']
@@ -48,7 +48,7 @@ class testbenchEngine(Engine):
         log.msg( __name__ + ' loaded')
 
 
-    def run_tests(self, testCaseName, testList, runTimes, daemon):
+    def run_tests(self, testCaseName, testList, runTimes, display, daemon):
         # using subprocess for running testbench, cwd is the working directory
         # stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
         # or a file object if you want the output to be written in a file.
@@ -62,6 +62,7 @@ class testbenchEngine(Engine):
         testbenchresult = ""
 
         i = 0
+        #cmd = "DISPLAY=:" + display + " mvn -Dtest="
         cmd = "mvn -Dtest="
         for test in testList:
             if i == 0:
@@ -71,8 +72,6 @@ class testbenchEngine(Engine):
                 cmd = cmd + "," + test    
 
         cmd = cmd + " test"
-        #cmd = "mvn verify"
-        cmdlist = cmd.split()
 
         log.msg('running tests', runTimes, 'times')
         
@@ -81,7 +80,7 @@ class testbenchEngine(Engine):
             while i <= runTimes:
                 try:
                     # output directory, each test case has its own folder and if one doesn't exist, it will be created.
-                    outputdir = "/home/adminuser/example/" + str(i) + "/" # own folder for each test run, the project name needs to be flexible
+                    outputdir = self.vOutputdir + str(i) + "/" # own folder for each test run, the project name needs to be flexible
                     if not os.path.isdir(outputdir):
                         os.makedirs(outputdir)
 
@@ -89,14 +88,14 @@ class testbenchEngine(Engine):
                     with open(outputfile, 'w') as fo:
 
                         log.msg('Running command:', cmd)
+                        log.msg(self.testdir)
+                        testbench = subprocess.Popen(cmd.split(),cwd=self.testdir,stdout=fo,stderr=fo).communicate()
 
-                        testbench = subprocess.Popen(cmdlist,cwd="/home/adminuser/example/",stdout=fo,stderr=fo).communicate()   #the project name needs to be flexible, maybe the same way as in RF engine?
-
-                    
+                    log.msg('Moving reports to correct location...')
                     # move output files into different folder for processing
-                    cpcmd = "cp TEST-com.vaadin.* " + outputdir
-                    moveit = subprocess.Popen(cpcmd,cwd="/home/adminuser/example/target/failsafe-reports/",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate() # flexibility needed once again
-                    log.msg(str(moveit))
+                    #cpcmd = "cp TEST-com.vaadin.* " + outputdir
+                    #moveit = subprocess.Popen(cpcmd,cwd=self.testdir+"target/failsafe-reports/",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate() # flexibility needed once again
+                    #log.msg(str(moveit))
 
                     # check and raise an exception if testbench cannot be run, needs to be tweaked
                     #if outputfile == '':
@@ -133,11 +132,11 @@ class testbenchEngine(Engine):
             while i <= runTimes:
                 try:
                     # project name needs to be flexible, same with the whole path
-                    outputdir = "/home/adminuser/example/" + str(i) + "/"
+                    outputdir = self.vOutputdir + str(i) + "/"
                     resultnotes.append([])
                     for test in self.testlist:
                         log.msg("getting results for " + test)
-                        outputfile = outputdir + "TEST-com.vaadin.testbenchexample." + test + ".xml" #the project name needs to be dynamic...
+                        outputfile = outputdir + "TEST-test.java.com.vaadin.testbenchexample." + test + ".xml" #the project name needs to be dynamic...
                         tree = ET.parse(outputfile)
                     
                         xmlpath = "testcase"

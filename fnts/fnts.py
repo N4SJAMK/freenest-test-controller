@@ -18,15 +18,17 @@
 
 """
 
-import os, re
+import os, re, subprocess
 
 from twisted.python import log
 import yaml
+from xml.etree import ElementTree as ET
 
 from engine import Engine
 from git_wrapper import gitwrapper
 from svn_puller import svnpuller
 from TestLinkPoller import TestLinkPoller
+from set_display import setDisplay
 
 
 class fnts:
@@ -35,9 +37,11 @@ class fnts:
         self.engine = None
         self.conf = conf
         self.data = None
+        self.displays = []
         self.cloud = cloud
         self.daemon = daemon
         self.useReceivedTests = False
+        self.iDisplay = None
 
     def run(self, data):
         
@@ -64,8 +68,13 @@ class fnts:
                 else:
                     raise Exception('No testing engines found!')
 
+            #check if there are virtual displays online
+            vnc = setDisplay(self.conf)
+            self.displays = vnc.check_displays()
+            display = vnc.set_display(self.displays, self.iDisplay)
+
             #Run tests and return results
-            return self.runTests()
+            return self.runTests(display)
 
         except Exception, e:
             return (-1, str(e), self.cloud)
@@ -204,6 +213,9 @@ class fnts:
         elif varEngine == "robotEngine":
             module = __import__("fnts.engine_robot")
             self.engine = module.engine_robot.robotEngine(self.conf, 'now')
+        elif varEngine == "testbenchEngine":
+            module = __import__("fnts.engine_testbench")
+            self.engine = module.engine_testbench.testbenchEngine(self.conf, 'now')
         elif varEngine == "cloudEngine":
             module = __import__("fnts.engine_cloud")
             self.engine = module.engine_cloud.cloudEngine(self.conf, 'now')
@@ -211,7 +223,7 @@ class fnts:
         else:
             raise Exception('Unknown engine ' + varEngine)
 
-    def runTests(self):
+    def runTests(self, display):
 
         if self.engine is None:
             raise Exception('No test engine loaded')
@@ -225,9 +237,9 @@ class fnts:
         if engine_state == 1:
             # if everything is ok, run the tests
             log.msg('Starting Engine')
-            log.msg(self.conf['general']['testingdirectory'])
+            #log.msg(self.conf['general']['testingdirectory'])
 
-            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'], self.daemon)
+            engineresult = self.engine.run_tests(self.sanitizeFilename(self.data['testCaseName']), scriptlist, self.conf['variables']['runtimes'], display, self.daemon)
             if engineresult != "ok":
                 engine_state = 0
                 log.msg('Engine error: ', engineresult)
@@ -255,15 +267,21 @@ class fnts:
     def updateVersion(self):
         # checking the version control software and choosing the correct driver
         #TODO: this part could be more flexible
+
+        if ['variables']['engine'] == "testbench":
+            testingdirectory = ['testbench']['testingdirectory']
+        else:
+            testingdirectory = ['robot']['testingdirectory']
+
         #GIT
         if self.conf['general']['versioncontrol'] == "GIT":
             wrapper = gitwrapper()
             gitrepository = self.conf['variables']['repository']
-            gitresult, reponame = wrapper.gitrun(self.conf['general']['testingdirectory'], gitrepository, self.data['tag'])
+            gitresult, reponame = wrapper.gitrun(testingdirectory, gitrepository, self.data['tag'])
             if str(gitresult) != "ok":
                 log.msg('Git error, running old tests. ERROR:', gitresult)
             else:
-                self.conf['general']['testingdirectory'] = self.conf['general']['testingdirectory'] + reponame + "/"
+                testingdirectory = testingdirectory + reponame + "/"
             #testdir = self.conf['general']['testingdirectory']
             return gitresult
         #SVN
@@ -276,7 +294,7 @@ class fnts:
             #setting the testdir to point to the tests instead of the repository
             #if a tag is given and not found, the trunk is used as a test resource
             if self.conf['variables']['tag'] == "null":
-                testdir = self.conf['general']['testingdirectory'] + "trunk/tests/"
+                testdir = testingdirectory + "trunk/tests/"
             else:
                 if os.path.exists(self.conf['general']['testingdirectory'] + self.customFields['tag'] + "/tests/") != True:
                     log.msg("Tagged tests were not found from the repository, running tests from trunk")
@@ -302,7 +320,7 @@ class fnts:
         log.msg(self.data['script'])
         
         try:
-            file = self.conf['general']['writtentestdirectory'] + self.data['scriptNames'] + ".txt"
+            file = self.conf['general']['writtentestdirectory'] + self.data['projectName'] + "/" + self.data['scriptNames'] + ".txt"
             if not os.path.exists(self.conf['general']['writtentestdirectory']):
                 os.makedirs(self.conf['general']['writtentestdirectory'])
             with open(file, 'w') as f:
@@ -314,7 +332,62 @@ class fnts:
         except Exception, e:
             log.msg('ERROR: Writing the script to a file failed!' + str(e))
 
-            
+
+    def getSystemInfo(self, getdetails):
+        details = {}
+        engines = self.searchEngines()
+
+        strEngines = ""
+        for engine in engines:
+            if strEngines == "":
+                strEngines = str(engine.__name__)
+            else:
+                strEngines = strEngines + " " + str(engine.__name__)
+
+        details['engines'] = strEngines
+
+        if getdetails == "true":
+            info = subprocess.Popen(['sh','getsysteminfo.sh'],cwd='/usr/share/pyshared/fnts/',stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()
+            info = self.parseInfo()
+
+        details['details'] = info
+
+        return details
+        
+
+    def parseInfo(self):
+        #parse info from the infofile
+        #log.msg('should parse some info')
+
+        tree = ET.parse('/tmp/systeminfo.xml')
+        nodename = tree.getroot().attrib['id']
+
+        path = "node/node/product"
+        cpu = tree.find(path).text
+        
+        path = "node/node/size"
+        memory = str(int(tree.find(path).text) / 1024 / 1024)
+
+        file = '/tmp/release'
+        with open(file, 'r') as f:
+            for line in f:
+                if "Description:" in line:
+                    opsystem = line.split(":")[1]
+
+        file = '/tmp/architecture'
+        with open(file, 'r') as f:
+            for line in f:
+                arch = line.strip()
+
+        details = "Node name:\n" + nodename + "\n\n"
+        details = details + "OS:\n" + opsystem.strip() + "\n\n"
+        details = details + "CPU:\n" + cpu + "\n\n"
+        details = details + "Architecture:\n" + arch + "\n\n"
+        details = details + "Memory:\n" + memory + "Mb\n\n"
+
+        return details
+        
+
 
 if __name__ == "__main__":
 

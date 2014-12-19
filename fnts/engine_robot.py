@@ -39,15 +39,15 @@ class robotEngine(Engine):
         self.result = -1
         self.robot_cmd = conf['robot']['command']
         self.scheduled = vScheduled
-        self.testdir = conf['general']['testingdirectory']
+        self.testdir = conf['robot']['testingdirectory']
         self.timestamp = ""
-        self.vOutputdir = conf['general']['outputdirectory']
+        self.vOutputdir = conf['robot']['outputdirectory']
         self.SERVER_URL = conf['testlink']['serverURL']
         self.slaves = conf['general']['slaves']
         self.slave_user = conf['general']['slave_user']
         log.msg( __name__ + ' loaded')
 
-    def run_tests(self, testCaseName, testList, runTimes, daemon):
+    def run_tests(self, testCaseName, testList, runTimes, display, daemon):
         # using subprocess for running robot, cwd is the working directory
         # stdout is needed for the command to work, use subprocess.PIPE if you don't need the output
         # or a file object if you want the output to be written in a file.
@@ -59,7 +59,7 @@ class robotEngine(Engine):
         foundtests = []
         listedtests = []
 
-        cmd = self.robot_cmd + " --name " + testCaseName + " --noncritical noncrit"
+        cmd = "DISPLAY=:" + display + " " + self.robot_cmd + " --name " + testCaseName + " --noncritical noncrit"
         for arg in self.dyn_args:
             if arg[0] == 'HUB':
                 # With robot engine we don't use HUB but still have to pass it as empty variable because it's probably in the robot scripts
