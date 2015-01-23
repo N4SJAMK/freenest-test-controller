@@ -13,6 +13,8 @@ test notes including possible error messages, and a time stamp.
 If using Robot Framework as the test engine, the user can also pass a test scrip within the call, in which case it is saved
 into a file and run against the target. 
 
+Please notice that the service is still in development meaning that there will be bugs.
+
 Contributors: Niko Korhonen, Mikko Ojala, Janne Alatalo, Henri Tervakoski
 
 Requirements
